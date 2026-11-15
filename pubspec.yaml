@@ -1,5 +1,5 @@
 name: wintermute_mobile
-description: Wintermute personal AI companion mobile demo.
+description: Flutter mobile client for Wintermute Agent conversations and activity capture.
 publish_to: none
 version: 0.1.0+1
 
@@ -9,8 +9,12 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_secure_storage: ^11.2.0
+  path_provider: ^2.1.6
 
 dev_dependencies:
+  integration_test:
+    sdk: flutter
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0

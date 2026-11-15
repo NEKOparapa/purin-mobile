@@ -1,18 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <!-- Theme applied to the Android Window while the process is starting when the OS's Dark Mode setting is off -->
-    <style name="LaunchTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <!-- Show a splash screen on the activity. Automatically removed when
-             the Flutter engine draws its first frame -->
-        <item name="android:windowBackground">@drawable/launch_background</item>
+    <color name="wintermute_canvas">#FFFFFF</color>
+    <color name="wintermute_accent">#4959BD</color>
+    <color name="wintermute_on_accent">#FFFFFF</color>
+    <!-- Older Android versions always draw light navigation icons. -->
+    <color name="wintermute_navigation_bar">@android:color/black</color>
+    <style name="WintermutePlatformTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
     </style>
-    <!-- Theme applied to the Android Window as soon as the process has started.
-         This theme determines the color of the Android Window while your
-         Flutter UI initializes, as well as behind your Flutter UI while its
-         running.
-
-         This Theme is only used starting with V2 of Flutter's Android embedding. -->
-    <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <item name="android:windowBackground">?android:colorBackground</item>
+    <style name="NormalTheme" parent="WintermutePlatformTheme">
+        <item name="android:colorBackground">@color/wintermute_canvas</item>
+        <item name="android:windowBackground">@color/wintermute_canvas</item>
+        <item name="android:statusBarColor">@color/wintermute_canvas</item>
+        <item name="android:navigationBarColor">@color/wintermute_navigation_bar</item>
+        <item name="android:colorAccent">@color/wintermute_accent</item>
     </style>
+    <style name="LaunchTheme" parent="NormalTheme" />
 </resources>

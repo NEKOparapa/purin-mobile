@@ -2,6 +2,21 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSScreenCaptureUsageDescription</key>
+	<string>经你允许，在使用其他应用时定时截屏并同步到已连接的 Wintermute 服务。</string>
+	<key>UIBackgroundModes</key>
+	<array><string>screen-capture</string></array>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>开启地点采集后，Wintermute 会根据手机位置生成活动时间线，并同步到你连接的服务。</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>允许后台定位后，Wintermute 可在手机锁屏或应用进入后台时记录地点到达、离开和较大位置变化。</string>
+	<key>NSLocalNetworkUsageDescription</key>
+	<string>连接你配置的局域网 Wintermute Agent 服务。</string>
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
+	</dict>
 	<key>CADisableMinimumFrameDurationOnPhone</key>
 	<true/>
 	<key>CFBundleDevelopmentRegion</key>
