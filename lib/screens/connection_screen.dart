@@ -230,6 +230,30 @@ class _ConnectionScreenState extends State<ConnectionScreen> {
                       ),
                     ),
                   ],
+                  if (session.deviceStatus.supported) ...[
+                    const SizedBox(height: 14),
+                    SwitchListTile.adaptive(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('允许 Agent 查询设备状态'),
+                      subtitle: Text(
+                        session.connection != null &&
+                                !session.canEnableDeviceStatus
+                            ? '请使用 HTTPS 或本机回环地址连接后启用。'
+                            : '应用在前台时可返回电量、版本和采集开关。',
+                      ),
+                      value: session.deviceStatusEnabled,
+                      onChanged: session.canEnableDeviceStatus
+                          ? session.setDeviceStatusEnabled
+                          : null,
+                    ),
+                    if (session.deviceStatusError != null)
+                      Text(
+                        '终端工具连接失败 · ${session.deviceStatusError}',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                  ],
                   const SizedBox(height: 28),
                   const Divider(),
                   const SizedBox(height: 24),

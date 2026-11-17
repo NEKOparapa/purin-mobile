@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart'
     show ChangeNotifier, ThemeMode, ValueNotifier;
 import 'agent_api.dart';
+import 'android_terminal_tools.dart';
 import 'device_inbox.dart';
 import 'chat_history.dart';
 import 'mobile_store.dart';
@@ -14,13 +15,23 @@ class MobileSession extends ChangeNotifier {
     this.api, {
     MobileSignals? signals,
     MobileScreenshots? screenshots,
+    AndroidDeviceStatus? deviceStatus,
   }) : signals = signals ?? MobileSignals(),
+       deviceStatus = deviceStatus ?? AndroidDeviceStatus(),
        screenshots = screenshots ?? MobileScreenshots();
   final MobileStore store;
   final AgentApi api;
   late final inbox = DeviceInbox(api);
   final MobileSignals signals;
   final MobileScreenshots screenshots;
+  final AndroidDeviceStatus deviceStatus;
+  var _tools = AndroidTerminalTools({});
+  bool get canEnableDeviceStatus =>
+      deviceStatus.supported &&
+      connection != null &&
+      secureToolConnection(connection!);
+  bool get deviceStatusEnabled => _tools.enabled;
+  String? get deviceStatusError => _tools.error;
   bool screenshotsEnabled = false;
   int screenshotInterval = 300, pendingScreenshots = 0;
   String screenshotAccess = 'unsupported';
@@ -170,6 +181,7 @@ class MobileSession extends ChangeNotifier {
       }
     }
     pending = outbox;
+    _tools = AndroidTerminalTools(saved['terminalTools'] as Json? ?? {});
     collecting = saved['collecting'] == true;
     locationEnabled = saved['locationEnabled'] == true;
     usageEnabled = saved['usageEnabled'] == true;
@@ -214,6 +226,7 @@ class MobileSession extends ChangeNotifier {
   Future<void> _save() => store.saveHistory(connection!.scope, {
     'outgoing': _outgoing.where((entry) => entry['event_id'] == null).toList(),
     'pending': pending,
+    'terminalTools': _tools.toJson(),
     'collecting': collecting,
     'locationEnabled': locationEnabled,
     'usageEnabled': usageEnabled,
@@ -316,9 +329,39 @@ class MobileSession extends ChangeNotifier {
           await _flushCollection();
         }
       });
+      if (deviceStatus.supported && _foreground) await _run(_pollDeviceStatus);
     } finally {
       _syncing = false;
     }
+  }
+
+  Future<void> setDeviceStatusEnabled(bool enabled) => _run(() async {
+    if (!canEnableDeviceStatus) return;
+    _tools.setEnabled(enabled);
+    await _save();
+    _notify();
+    await _pollDeviceStatus();
+  });
+
+  Future<void> _pollDeviceStatus() async {
+    final conn = connection;
+    if (conn == null) return;
+    await _tools.poll(
+      api,
+      conn,
+      () async => {
+        'platform': 'android',
+        ...await deviceStatus.read(),
+        'collection': {
+          'app_activity': collecting,
+          'location': locationEnabled,
+          'app_usage': usageEnabled,
+          'screenshots': screenshotsEnabled,
+        },
+      },
+      _save,
+      () => _foreground && !_disposed,
+    );
   }
 
   Future<void> _refreshChat(Connection conn) async {
