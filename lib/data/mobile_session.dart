@@ -2,12 +2,14 @@ import 'dart:async';
 import 'package:flutter/material.dart'
     show ChangeNotifier, ThemeMode, ValueNotifier;
 import 'agent_api.dart';
-import 'android_terminal_tools.dart';
+import 'mobile_terminal_tools.dart';
+import 'mobile_connectors.dart';
 import 'device_inbox.dart';
 import 'chat_history.dart';
 import 'mobile_store.dart';
 import 'mobile_signals.dart';
 import 'mobile_screenshots.dart';
+import 'question.dart';
 
 class MobileSession extends ChangeNotifier {
   MobileSession(
@@ -20,12 +22,67 @@ class MobileSession extends ChangeNotifier {
        deviceStatus = deviceStatus ?? AndroidDeviceStatus(),
        screenshots = screenshots ?? MobileScreenshots();
   final MobileStore store;
+  String? installation;
   final AgentApi api;
   late final inbox = DeviceInbox(api);
   final MobileSignals signals;
   final MobileScreenshots screenshots;
   final AndroidDeviceStatus deviceStatus;
-  var _tools = AndroidTerminalTools({});
+  final connectors = MobileConnectors();
+  bool connectorEnabled(MobileConnector item) => _tools.selected.contains(item);
+  bool connectorGranted(MobileConnector item) =>
+      item.platform == connectors.platform && _tools.access[item.key] == true;
+
+  Future<String?> setMobileConnector(MobileConnector item, bool enabled) async {
+    final conn = connection;
+    if (item.platform != connectors.platform) return '此连接器不适用于当前设备。';
+    if (!canEnableConnectors || conn == null) {
+      return '请先通过 HTTPS 或本机回环地址连接服务。';
+    }
+    if (enabled && !await connectors.authorize(item, conn.scope)) {
+      return item == MobileConnector.sms
+          ? '系统未授予短信读取权限。部分安装渠道限制此权限。'
+          : connectors.platform == ConnectorPlatform.ios
+          ? '尚未获得授权，可在 iPhone 的「设置 → 隐私与安全性」中调整。'
+          : '尚未获得系统授权。';
+    }
+    String? issue;
+    await _run(() async {
+      if (connection != conn) {
+        issue = '连接已更改，请重试。';
+        return;
+      }
+      final previous = _tools.toJson();
+      if (enabled) {
+        _tools.selected.add(item);
+      } else {
+        _tools.disableConnector(item);
+      }
+      try {
+        await _save();
+      } catch (_) {
+        _tools = MobileTerminalTools(previous, connectors.platform);
+        issue = '无法保存连接器设置，请重试。';
+        return;
+      }
+      try {
+        if (!enabled && item == MobileConnector.files) {
+          await connectors.releaseFolder(conn.scope);
+        }
+      } finally {
+        _notify();
+        await _pollDeviceStatus();
+        issue = _tools.error;
+      }
+    });
+    return issue;
+  }
+
+  late var _tools = MobileTerminalTools({}, connectors.platform);
+  bool get canEnableConnectors =>
+      connectors.platform != ConnectorPlatform.unsupported &&
+      connection != null &&
+      secureToolConnection(connection!);
   bool get canEnableDeviceStatus =>
       deviceStatus.supported &&
       connection != null &&
@@ -62,6 +119,7 @@ class MobileSession extends ChangeNotifier {
   var _history = ChatHistory();
   List<Json> _serverMessages = [];
   List<Json> _outgoing = [];
+  List<PendingQuestion> questions = [];
   List<Json> get messages {
     if (_outgoing.isEmpty) return _serverMessages;
     final byEvent = {
@@ -109,7 +167,7 @@ class MobileSession extends ChangeNotifier {
   Future<void> _tail = Future.value();
   Timer? _timer;
 
-  // All changes to the outbox, chat and active terminal share one ordered writer.
+  // All changes to the outbox, chat and active deviceId share one ordered writer.
   Future<void> _run(Future<void> Function() action) {
     return _tail = _tail.then((_) async {
       if (_disposed) return;
@@ -138,8 +196,19 @@ class MobileSession extends ChangeNotifier {
     );
     await _run(() async {
       try {
-        final saved = await store.connection();
+        installation = await store.installationId();
+        var saved = await store.connection();
         if (saved != null) {
+          if (saved.installation != installation) {
+            saved = Connection(
+              saved.url,
+              saved.deviceId,
+              saved.token,
+              installation: installation,
+              name: saved.deviceName,
+            );
+            await store.saveConnection(saved);
+          }
           await _load(saved);
         } else {
           await _refreshSignals();
@@ -181,7 +250,10 @@ class MobileSession extends ChangeNotifier {
       }
     }
     pending = outbox;
-    _tools = AndroidTerminalTools(saved['terminalTools'] as Json? ?? {});
+    _tools = MobileTerminalTools(
+      saved['terminalTools'] as Json? ?? {},
+      connectors.platform,
+    );
     collecting = saved['collecting'] == true;
     locationEnabled = saved['locationEnabled'] == true;
     usageEnabled = saved['usageEnabled'] == true;
@@ -198,6 +270,7 @@ class MobileSession extends ChangeNotifier {
     lastActivity = saved['lastActivity'];
     lastUpload = saved['lastUpload'];
     collectionError = null;
+    questions = [];
     connection = value;
     inbox.connect(value);
     if (saved.containsKey('messages') || outbox.length != queued) await _save();
@@ -209,7 +282,7 @@ class MobileSession extends ChangeNotifier {
   Future<bool> configure(Connection value) async {
     var ok = false;
     await _run(() async {
-      await api.request(value, 'outputs?limit=1');
+      await api.request(value, 'devices/self', body: {});
       await store.saveConnection(value);
       await _load(value);
       error = null;
@@ -279,6 +352,68 @@ class MobileSession extends ChangeNotifier {
     if (_outgoing.contains(entry) && entry['job'] == null) await _submit(entry);
   });
 
+  Future<void> _refreshQuestions(Connection conn) async {
+    try {
+      final page = await api.request(conn, 'questions?status=pending&limit=20');
+      final raw = (page['items'] as List? ?? const []).cast<Json>();
+      questions = [for (final row in raw) PendingQuestion.fromJson(row)];
+    } on ApiError catch (e) {
+      if (e.status == 404) return;
+      rethrow;
+    }
+  }
+
+  Future<void> answerQuestion(
+    String id, {
+    List<String> selectedOptions = const [],
+    String answerText = '',
+  }) async {
+    final conn = connection;
+    if (conn == null) throw StateError('请先连接设备');
+    try {
+      await api.request(
+        conn,
+        'questions/${Uri.encodeComponent(id)}/answer',
+        body: {'selected_options': selectedOptions, 'answer_text': answerText},
+      );
+      questions = questions.where((q) => q.id != id).toList();
+      _notify();
+      unawaited(sync());
+    } on ApiError catch (e) {
+      if (e.status == 409) {
+        questions = questions.where((q) => q.id != id).toList();
+        _notify();
+        throw StateError('该提问已在其他设备处理');
+      }
+      if (e.status == 400) {
+        throw StateError('请至少选择一个选项或填写回答内容');
+      }
+      rethrow;
+    }
+  }
+
+  Future<void> dismissQuestion(String id) async {
+    final conn = connection;
+    if (conn == null) throw StateError('请先连接设备');
+    try {
+      await api.request(
+        conn,
+        'questions/${Uri.encodeComponent(id)}/dismiss',
+        body: const {},
+      );
+      questions = questions.where((q) => q.id != id).toList();
+      _notify();
+      unawaited(sync());
+    } on ApiError catch (e) {
+      if (e.status == 409) {
+        questions = questions.where((q) => q.id != id).toList();
+        _notify();
+        throw StateError('该提问已在其他设备处理');
+      }
+      rethrow;
+    }
+  }
+
   Future<void> _submit(Json entry) async {
     try {
       final result = await api.request(
@@ -310,6 +445,7 @@ class MobileSession extends ChangeNotifier {
         unawaited(_uploadScreenshots());
         try {
           await _refreshChat(conn);
+          await _refreshQuestions(conn);
           final inbox = await api.request(conn, 'outputs?limit=100');
           for (final row in (inbox['outputs'] as List).cast<Json>()) {
             if (row['status'] == 'pending' &&
@@ -329,7 +465,9 @@ class MobileSession extends ChangeNotifier {
           await _flushCollection();
         }
       });
-      if (deviceStatus.supported && _foreground) await _run(_pollDeviceStatus);
+      if (connectors.platform != ConnectorPlatform.unsupported && _foreground) {
+        await _run(_pollDeviceStatus);
+      }
     } finally {
       _syncing = false;
     }
@@ -359,6 +497,7 @@ class MobileSession extends ChangeNotifier {
           'screenshots': screenshotsEnabled,
         },
       },
+      connectors,
       _save,
       () => _foreground && !_disposed,
     );
@@ -371,7 +510,7 @@ class MobileSession extends ChangeNotifier {
     final eventIds = {for (final row in rows) row['id']};
     final accepted = {
       for (final row in rows)
-        if (row['role'] == 'user' && row['terminal_id'] == conn.terminal)
+        if (row['role'] == 'user' && row['device_id'] == conn.deviceId)
           row['message_id'],
     };
     var changed = false;

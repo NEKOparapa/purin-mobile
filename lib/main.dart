@@ -9,6 +9,7 @@ import 'widgets/app_theme.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   runApp(const WintermuteApp());
 }
 

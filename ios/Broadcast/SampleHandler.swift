@@ -26,7 +26,7 @@ final class SampleHandler: RPBroadcastSampleHandler {
   private func endDisabled() {
     stopTimer?.cancel()
     finishBroadcastWithError(NSError(domain: "dev.wintermute.screenshots", code: 1,
-      userInfo: [NSLocalizedDescriptionKey: "定时截图已关闭或终端已切换。"]))
+      userInfo: [NSLocalizedDescriptionKey: "定时截图已关闭或设备已切换。"]))
   }
 
   override func broadcastPaused() { paused = true }

@@ -22,9 +22,15 @@ class MainActivity : FlutterActivity() {
     private var shotToken: String? = null
     private var shotChannel: MethodChannel? = null
     private var notices: NoticeActions? = null
+    private var connectors: AndroidConnectorHost? = null
+    private var connectorChannel: MethodChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        connectors = AndroidConnectorHost(this).also { host ->
+            connectorChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.wintermute/android_connectors")
+                .also { it.setMethodCallHandler(host::handle) }
+        }
         val noticeChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DeviceNotices.CHANNEL)
         notices = NoticeActions(this, noticeChannel).also { noticeChannel.setMethodCallHandler(it::handle) }
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.wintermute/mobile_signals")
@@ -36,6 +42,10 @@ class MainActivity : FlutterActivity() {
     }
 
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        connectorChannel?.setMethodCallHandler(null)
+        connectorChannel = null
+        connectors?.close()
+        connectors = null
         notices?.channel?.setMethodCallHandler(null)
         notices = null
         if (signals.screenshots.channel === shotChannel) signals.screenshots.channel = null
@@ -190,6 +200,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == AndroidConnectorHost.PERMISSION) connectors?.finish()
         if(requestCode==NoticeActions.PERMISSION) notices?.permissionResult()
         if (requestCode == LOCATION_REQUEST || requestCode == BACKGROUND_REQUEST) {
             if (requestCode == LOCATION_REQUEST && grantResults.isNotEmpty()) {
@@ -204,6 +215,7 @@ class MainActivity : FlutterActivity() {
     @Deprecated("Used by Android system settings")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
+        if (requestCode == AndroidConnectorHost.SETTINGS) connectors?.finish(resultCode, data)
         if(requestCode==NoticeActions.FILE) notices?.fileResult(resultCode,data)
         if (requestCode == SETTINGS_REQUEST) finishRequest()
         if (requestCode == SCREENSHOT_REQUEST) {

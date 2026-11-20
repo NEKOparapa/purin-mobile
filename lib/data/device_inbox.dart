@@ -279,7 +279,8 @@ class DeviceInbox extends ChangeNotifier {
     return await noticeChannel.invokeMethod<bool>('saveAttachment', {
           'url':
               '${conn.url}/v1/notifications/${_segment(notice.id)}/files/${_segment(file.id)}',
-          'terminal': conn.terminal,
+          'deviceId': conn.deviceId,
+          'installation': conn.installation,
           'token': conn.token,
           'name': file.name,
           'size': file.size,

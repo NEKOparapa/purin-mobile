@@ -11,32 +11,67 @@ String newEventId() {
 }
 
 class Connection {
-  Connection(String address, String id, String secret)
-    : url = address.trim().replaceFirst(RegExp(r'/+$'), ''),
-      terminal = id.trim(),
-      token = secret.trim() {
+  Connection(
+    String address,
+    String id,
+    String secret, {
+    this.installation,
+    String? name,
+  }) : url = address.trim().replaceFirst(RegExp(r'/+$'), ''),
+       deviceId = id.trim(),
+       deviceName = (name ?? defaultDeviceName).trim(),
+       token = secret.trim() {
+    if (deviceName.isEmpty ||
+        deviceName.runes.length > 80 ||
+        RegExp(r'[\x00-\x1f\x7f-\x9f]').hasMatch(deviceName)) {
+      throw const FormatException('请输入 1 至 80 个字符的设备名称');
+    }
     final uri = Uri.tryParse(url);
     if (uri == null ||
         !['http', 'https'].contains(uri.scheme) ||
         uri.host.isEmpty ||
+        (uri.path.isNotEmpty && uri.path != '/') ||
         uri.userInfo.isNotEmpty ||
         uri.hasQuery ||
         uri.hasFragment ||
-        terminal.isEmpty ||
+        deviceId.isEmpty ||
         token.isEmpty ||
-        !RegExp(r'^[!-~]+$').hasMatch(terminal) ||
+        !RegExp(r'^[!-~]+$').hasMatch(deviceId) ||
         !RegExp(r'^[!-~]+$').hasMatch(token)) {
-      throw const FormatException('请填写完整服务地址、终端 ID 和令牌');
+      throw const FormatException('请填写服务根地址（不带 /v1 或其他路径）、设备 ID 和令牌');
     }
   }
 
-  factory Connection.fromJson(Json data) =>
-      Connection(data['url'], data['terminal'], data['token']);
+  factory Connection.fromJson(Json data) => Connection(
+    data['url'],
+    data['deviceId'] ?? data['terminal'],
+    data['token'],
+    installation: data['installation'],
+    name: data['deviceName'],
+  );
+  static String get defaultDeviceName =>
+      Platform.isIOS ? 'iOS 设备' : 'Android 手机';
+  final String? installation;
+  final String deviceName;
+  void identify(HttpHeaders headers) {
+    headers.set('X-Device-ID', deviceId);
+    if (installation != null) {
+      headers.set('X-Device-Instance', installation!);
+      headers.set('X-Device-Name', base64.encode(utf8.encode(deviceName)));
+    }
+  }
+
   final String url;
-  final String terminal;
+  final String deviceId;
   final String token;
-  String get scope => jsonEncode([url, terminal]);
-  Json toJson() => {'url': url, 'terminal': terminal, 'token': token};
+  String get scope => jsonEncode([url, deviceId]);
+  Json toJson() => {
+    'url': url,
+    'deviceId': deviceId,
+    'token': token,
+    'installation': installation,
+    'deviceName': deviceName,
+  };
 }
 
 class ApiError implements Exception {
@@ -44,10 +79,47 @@ class ApiError implements Exception {
   final int status;
   final String code;
   @override
-  String toString() => 'HTTP $status · $code';
+  String toString() => code == 'device_id_in_use'
+      ? '此设备 ID 已绑定其他设备，请为本机登记独立的设备 ID'
+      : 'HTTP $status · $code';
 }
 
 class AgentApi {
+  Future<Uint8List> chatImage(Connection connection, String id) async {
+    final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
+    Future<Uint8List> load() async {
+      final uri = Uri.parse(
+        '${connection.url}/v1/history/files/${Uri.encodeComponent(id)}',
+      );
+      final request = await client.getUrl(uri);
+      request.followRedirects = false;
+      connection.identify(request.headers);
+      request.headers.set(
+        HttpHeaders.authorizationHeader,
+        'Bearer ${connection.token}',
+      );
+      final response = await request.close();
+      if (response.statusCode != 200 ||
+          response.headers.contentType?.mimeType != 'image/jpeg') {
+        throw const FormatException('无法读取聊天图片');
+      }
+      final bytes = BytesBuilder(copy: false);
+      await for (final chunk in response) {
+        if (bytes.length + chunk.length > 512 * 1024) {
+          throw const FormatException('聊天图片过大');
+        }
+        bytes.add(chunk);
+      }
+      return bytes.takeBytes();
+    }
+
+    try {
+      return await load().timeout(const Duration(seconds: 30));
+    } finally {
+      client.close(force: true);
+    }
+  }
+
   Future<Json> request(Connection connection, String path, {Json? body}) =>
       _request(connection, path, body: body);
 
@@ -97,7 +169,7 @@ class AgentApi {
         uri,
       );
       request.followRedirects = false;
-      request.headers.set('X-Terminal-ID', connection.terminal);
+      connection.identify(request.headers);
       request.headers.set(
         HttpHeaders.authorizationHeader,
         'Bearer ${connection.token}',

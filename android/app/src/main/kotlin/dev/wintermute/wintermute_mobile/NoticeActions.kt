@@ -23,7 +23,8 @@ internal class NoticeActions(private val activity: MainActivity, val channel: Me
 
     private data class Download(
         val url: URL,
-        val terminal: String,
+        val deviceId: String,
+        val installation: String?,
         val token: String,
         val bytes: Long,
         val result: MethodChannel.Result,
@@ -140,7 +141,8 @@ internal class NoticeActions(private val activity: MainActivity, val channel: Me
                     val pending =
                         Download(
                             url,
-                            call.argument<String>("terminal")!!,
+                            call.argument<String>("deviceId")!!,
+                            call.argument<String>("installation"),
                             call.argument<String>("token")!!,
                             size,
                             result,
@@ -194,7 +196,8 @@ internal class NoticeActions(private val activity: MainActivity, val channel: Me
                         http.readTimeout = 20000
                         http.useCaches = false
                         http.setRequestProperty("Authorization", "Bearer " + pending.token)
-                        http.setRequestProperty("X-Terminal-ID", pending.terminal)
+                        http.setRequestProperty("X-Device-ID", pending.deviceId)
+                        pending.installation?.let { http.setRequestProperty("X-Device-Instance", it) }
                         check(http.responseCode == 200) { "下载失败 (HTTP ${http.responseCode})" }
                         http.inputStream.use { src ->
                             staging.outputStream().use { dst ->

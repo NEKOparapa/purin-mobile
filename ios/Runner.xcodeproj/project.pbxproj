@@ -16,10 +16,13 @@
 		B19A53F1000000000000000C /* ScreenshotSampler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B19A53F10000000000000002 /* ScreenshotSampler.swift */; };
 		B19A53F1000000000000000B /* ScreenshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B19A53F10000000000000001 /* ScreenshotStore.swift */; };
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
-		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		9B6DD6C547B8480FA2B351A3 /* MobileSignals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B6DD6C547B8480FA2B351A2 /* MobileSignals.swift */; };
+		C6A47C210000000000000000 /* IOSConnectorHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A47C200000000000000000 /* IOSConnectorHost.swift */; };
+		C6A47C210000000000000001 /* IOSConnectorLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A47C200000000000000001 /* IOSConnectorLocation.swift */; };
+		C6A47C210000000000000002 /* IOSPersonalData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A47C200000000000000002 /* IOSPersonalData.swift */; };
+		C6A47C210000000000000003 /* IOSMediaHealth.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A47C200000000000000003 /* IOSMediaHealth.swift */; };
 		7884E8682EC3CC0700C636F2 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */; };
 		78A318202AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage in Frameworks */ = {isa = PBXBuildFile; productRef = 78A3181F2AECB46A00862997 /* FlutterGeneratedPluginSwiftPackage */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
@@ -29,13 +32,6 @@
 
 /* Begin PBXContainerItemProxy section */
 		B19A53F1000000000000001D /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = 97C146E61CF9000F007C117D; proxyType = 1; remoteGlobalIDString = B19A53F10000000000000018; remoteInfo = WintermuteBroadcast; };
-		331C8085294A63A400263BE5 /* PBXContainerItemProxy */ = {
-			isa = PBXContainerItemProxy;
-			containerPortal = 97C146E61CF9000F007C117D /* Project object */;
-			proxyType = 1;
-			remoteGlobalIDString = 97C146ED1CF9000F007C117D;
-			remoteInfo = Runner;
-		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -63,12 +59,14 @@
 		B19A53F10000000000000001 /* ScreenshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenshotStore.swift; sourceTree = "<group>"; };
 		1498D2321E8E86230040F4C2 /* GeneratedPluginRegistrant.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeneratedPluginRegistrant.h; sourceTree = "<group>"; };
 		1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = GeneratedPluginRegistrant.m; sourceTree = "<group>"; };
-		331C807B294A618700263BE5 /* RunnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RunnerTests.swift; sourceTree = "<group>"; };
-		331C8081294A63A400263BE5 /* RunnerTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = RunnerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		9B6DD6C547B8480FA2B351A2 /* MobileSignals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileSignals.swift; sourceTree = "<group>"; };
+		C6A47C200000000000000000 /* IOSConnectorHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSConnectorHost.swift; sourceTree = "<group>"; };
+		C6A47C200000000000000001 /* IOSConnectorLocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSConnectorLocation.swift; sourceTree = "<group>"; };
+		C6A47C200000000000000002 /* IOSPersonalData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSPersonalData.swift; sourceTree = "<group>"; };
+		C6A47C200000000000000003 /* IOSMediaHealth.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSMediaHealth.swift; sourceTree = "<group>"; };
 		7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		78E0A7A72DC9AD7400C4905E /* FlutterGeneratedPluginSwiftPackage */ = {isa = PBXFileReference; lastKnownFileType = wrapper; name = FlutterGeneratedPluginSwiftPackage; path = Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage; sourceTree = "<group>"; };
 		7AFA3C8E1D35360C0083082E /* Release.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = Release.xcconfig; path = Flutter/Release.xcconfig; sourceTree = "<group>"; };
@@ -95,14 +93,6 @@
 /* Begin PBXGroup section */
 		B19A53F10000000000000015 /* Broadcast */ = {isa = PBXGroup; children = (B19A53F10000000000000003 /* SampleHandler.swift */, B19A53F10000000000000006 /* Info.plist */, B19A53F10000000000000007 /* Broadcast.entitlements */, ); path = Broadcast; sourceTree = "<group>"; };
 		B19A53F10000000000000014 /* Shared */ = {isa = PBXGroup; children = (B19A53F10000000000000001 /* ScreenshotStore.swift */, B19A53F10000000000000002 /* ScreenshotSampler.swift */, ); path = Shared; sourceTree = "<group>"; };
-		331C8082294A63A400263BE5 /* RunnerTests */ = {
-			isa = PBXGroup;
-			children = (
-				331C807B294A618700263BE5 /* RunnerTests.swift */,
-			);
-			path = RunnerTests;
-			sourceTree = "<group>";
-		};
 		9740EEB11CF90186004384FC /* Flutter */ = {
 			isa = PBXGroup;
 			children = (
@@ -123,7 +113,6 @@
 				B19A53F10000000000000015 /* Broadcast */,
 				97C146F01CF9000F007C117D /* Runner */,
 				97C146EF1CF9000F007C117D /* Products */,
-				331C8082294A63A400263BE5 /* RunnerTests */,
 			);
 			sourceTree = "<group>";
 		};
@@ -132,7 +121,6 @@
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
 				B19A53F10000000000000008 /* WintermuteBroadcast.appex */,
-				331C8081294A63A400263BE5 /* RunnerTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -148,6 +136,10 @@
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
 				9B6DD6C547B8480FA2B351A2 /* MobileSignals.swift */,
+				C6A47C200000000000000000 /* IOSConnectorHost.swift */,
+				C6A47C200000000000000001 /* IOSConnectorLocation.swift */,
+				C6A47C200000000000000002 /* IOSPersonalData.swift */,
+				C6A47C200000000000000003 /* IOSMediaHealth.swift */,
 				B19A53F10000000000000004 /* Screenshots.swift */,
 				B19A53F10000000000000005 /* ScreenCaptureSession.swift */,
 				7884E8672EC3CC0400C636F2 /* SceneDelegate.swift */,
@@ -169,23 +161,6 @@
 			productName = WintermuteBroadcast;
 			productReference = B19A53F10000000000000008 /* WintermuteBroadcast.appex */;
 			productType = "com.apple.product-type.app-extension";
-		};
-		331C8080294A63A400263BE5 /* RunnerTests */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */;
-			buildPhases = (
-				331C807D294A63A400263BE5 /* Sources */,
-				331C807F294A63A400263BE5 /* Resources */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-				331C8086294A63A400263BE5 /* PBXTargetDependency */,
-			);
-			name = RunnerTests;
-			productName = RunnerTests;
-			productReference = 331C8081294A63A400263BE5 /* RunnerTests.xctest */;
-			productType = "com.apple.product-type.bundle.unit-test";
 		};
 		97C146ED1CF9000F007C117D /* Runner */ = {
 			isa = PBXNativeTarget;
@@ -222,10 +197,6 @@
 				LastUpgradeCheck = 1510;
 				ORGANIZATIONNAME = "";
 				TargetAttributes = {
-					331C8080294A63A400263BE5 = {
-						CreatedOnToolsVersion = 14.0;
-						TestTargetID = 97C146ED1CF9000F007C117D;
-					};
 					97C146ED1CF9000F007C117D = {
 						CreatedOnToolsVersion = 7.3.1;
 						LastSwiftMigration = 1100;
@@ -250,19 +221,11 @@
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
 				B19A53F10000000000000018 /* WintermuteBroadcast */,
-				331C8080294A63A400263BE5 /* RunnerTests */,
 			);
 		};
 /* End PBXProject section */
 
 /* Begin PBXResourcesBuildPhase section */
-		331C807F294A63A400263BE5 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		97C146EC1CF9000F007C117D /* Resources */ = {
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
@@ -312,20 +275,16 @@
 
 /* Begin PBXSourcesBuildPhase section */
 		B19A53F10000000000000016 /* Sources */ = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B19A53F1000000000000000B /* ScreenshotStore.swift in Sources */, B19A53F1000000000000000C /* ScreenshotSampler.swift in Sources */, B19A53F1000000000000000D /* SampleHandler.swift in Sources */, ); runOnlyForDeploymentPostprocessing = 0; };
-		331C807D294A63A400263BE5 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
 		97C146EA1CF9000F007C117D /* Sources */ = {
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				9B6DD6C547B8480FA2B351A3 /* MobileSignals.swift in Sources */,
+				C6A47C210000000000000000 /* IOSConnectorHost.swift in Sources */,
+				C6A47C210000000000000001 /* IOSConnectorLocation.swift in Sources */,
+				C6A47C210000000000000002 /* IOSPersonalData.swift in Sources */,
+				C6A47C210000000000000003 /* IOSMediaHealth.swift in Sources */,
 				B19A53F1000000000000000E /* Screenshots.swift in Sources */,
 				B19A53F1000000000000000F /* ScreenCaptureSession.swift in Sources */,
 				B19A53F10000000000000010 /* ScreenshotStore.swift in Sources */,
@@ -339,11 +298,6 @@
 
 /* Begin PBXTargetDependency section */
 		B19A53F1000000000000001E /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = B19A53F10000000000000018 /* WintermuteBroadcast */; targetProxy = B19A53F1000000000000001D /* PBXContainerItemProxy */; };
-		331C8086294A63A400263BE5 /* PBXTargetDependency */ = {
-			isa = PBXTargetDependency;
-			target = 97C146ED1CF9000F007C117D /* Runner */;
-			targetProxy = 331C8085294A63A400263BE5 /* PBXContainerItemProxy */;
-		};
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
@@ -488,53 +442,6 @@
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
 				VERSIONING_SYSTEM = "apple-generic";
-			};
-			name = Profile;
-		};
-		331C8088294A63A400263BE5 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.wintermute.wintermuteMobile.RunnerTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
-			};
-			name = Debug;
-		};
-		331C8089294A63A400263BE5 /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.wintermute.wintermuteMobile.RunnerTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
-			};
-			name = Release;
-		};
-		331C808A294A63A400263BE5 /* Profile */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				BUNDLE_LOADER = "$(TEST_HOST)";
-				CODE_SIGN_STYLE = Automatic;
-				CURRENT_PROJECT_VERSION = 1;
-				GENERATE_INFOPLIST_FILE = YES;
-				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.wintermute.wintermuteMobile.RunnerTests;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SWIFT_VERSION = 5.0;
-				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/Runner.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/Runner";
 			};
 			name = Profile;
 		};
@@ -698,16 +605,6 @@
 
 /* Begin XCConfigurationList section */
 		B19A53F10000000000000019 /* Build configuration list for WintermuteBroadcast */ = {isa = XCConfigurationList; buildConfigurations = (B19A53F1000000000000001A /* Debug */, B19A53F1000000000000001B /* Release */, B19A53F1000000000000001C /* Profile */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		331C8087294A63A400263BE5 /* Build configuration list for PBXNativeTarget "RunnerTests" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				331C8088294A63A400263BE5 /* Debug */,
-				331C8089294A63A400263BE5 /* Release */,
-				331C808A294A63A400263BE5 /* Profile */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Release;
-		};
 		97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

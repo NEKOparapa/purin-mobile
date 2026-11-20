@@ -5,6 +5,7 @@ import UIKit
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private let mobileSignals = MobileSignals()
   private let screenshots = Screenshots()
+  private let connectors = IOSConnectorHost()
 
   override func application(
     _ application: UIApplication,
@@ -19,5 +20,6 @@ import UIKit
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     mobileSignals.register(with: engineBridge.applicationRegistrar.messenger())
     screenshots.register(with: engineBridge.applicationRegistrar.messenger())
+    connectors.register(with: engineBridge.applicationRegistrar.messenger())
   }
 }

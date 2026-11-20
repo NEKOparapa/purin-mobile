@@ -6,8 +6,24 @@
 	<string>经你允许，在使用其他应用时定时截屏并同步到已连接的 Wintermute 服务。</string>
 	<key>UIBackgroundModes</key>
 	<array><string>screen-capture</string></array>
+	<key>NSCalendarsUsageDescription</key>
+	<string>启用日历连接器后，可在当前会话中查询日程或创建会议。</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>在你启用的连接中查询日程或创建会议，结果返回给当前服务。</string>
+	<key>NSRemindersUsageDescription</key>
+	<string>通过当前服务查看、创建和完成你授权的待办。</string>
+	<key>NSRemindersFullAccessUsageDescription</key>
+	<string>通过当前服务查看、创建和完成你授权的待办。</string>
+	<key>NSContactsUsageDescription</key>
+	<string>按姓名查找获准访问的联系人，并将匹配的号码和邮箱返回给当前服务。</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>查找获准访问的照片和截图，向当前服务返回拍摄时间和尺寸，也可在本机打开预览。</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>用 Apple Music 连接器搜索曲库并根据你的指令控制播放。</string>
+	<key>NSHealthShareUsageDescription</key>
+	<string>汇总你选择的步数、睡眠和锻炼记录。每次分享前会显示摘要和接收服务，由你确认。</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>开启地点采集后，Wintermute 会根据手机位置生成活动时间线，并同步到你连接的服务。</string>
+	<string>通过你开启的位置连接器获取一次位置，或按你开启的地点采集设置生成活动时间线。</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>允许后台定位后，Wintermute 可在手机锁屏或应用进入后台时记录地点到达、离开和较大位置变化。</string>
 	<key>NSLocalNetworkUsageDescription</key>

@@ -6,6 +6,7 @@ import 'package:path_provider/path_provider.dart';
 import 'agent_api.dart';
 
 abstract interface class MobileStore {
+  Future<String> installationId();
   Future<ThemeMode> readTheme();
   Future<void> saveTheme(ThemeMode mode);
   Future<Connection?> connection();
@@ -16,6 +17,15 @@ abstract interface class MobileStore {
 
 class DeviceStore implements MobileStore {
   final _secrets = const FlutterSecureStorage();
+
+  @override
+  Future<String> installationId() async {
+    final existing = await _secrets.read(key: 'device.installation');
+    if (existing != null) return existing;
+    final id = newEventId();
+    await _secrets.write(key: 'device.installation', value: id);
+    return id;
+  }
 
   Future<File> get _themeFile async =>
       File('${(await getApplicationSupportDirectory()).path}/appearance');
@@ -39,7 +49,11 @@ class DeviceStore implements MobileStore {
   @override
   Future<Connection?> connection() async {
     final raw = await _secrets.read(key: 'agent.connection');
-    return raw == null ? null : Connection.fromJson(jsonDecode(raw));
+    if (raw == null) return null;
+    final data = jsonDecode(raw) as Json;
+    final connection = Connection.fromJson(data);
+    if (data.containsKey('terminal')) await saveConnection(connection);
+    return connection;
   }
 
   @override

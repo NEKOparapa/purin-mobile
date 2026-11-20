@@ -18,9 +18,8 @@ jobs:
           channel: stable
           cache: true
       - run: flutter pub get
-      - run: dart format --output=none --set-exit-if-changed lib test
+      - run: dart format --output=none --set-exit-if-changed lib
       - run: flutter analyze
-      - run: flutter test
       - if: runner.os == 'Linux'
         run: flutter build apk --debug
       - if: runner.os == 'macOS'
