@@ -197,7 +197,10 @@ internal class NoticeActions(private val activity: MainActivity, val channel: Me
                         http.useCaches = false
                         http.setRequestProperty("Authorization", "Bearer " + pending.token)
                         http.setRequestProperty("X-Device-ID", pending.deviceId)
-                        pending.installation?.let { http.setRequestProperty("X-Device-Instance", it) }
+                        pending.installation?.let {
+                            http.setRequestProperty("X-Device-Instance", it)
+                            http.setRequestProperty("X-Device-Platform", "android")
+                        }
                         check(http.responseCode == 200) { "下载失败 (HTTP ${http.responseCode})" }
                         http.inputStream.use { src ->
                             staging.outputStream().use { dst ->

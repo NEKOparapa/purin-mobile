@@ -10,6 +10,20 @@ String newEventId() {
   return base64Url.encode(List.generate(18, (_) => random.nextInt(256)));
 }
 
+enum DevicePlatform {
+  android('Android'),
+  ios('iOS');
+
+  const DevicePlatform(this.label);
+  final String label;
+
+  static DevicePlatform? get current => switch (Platform.operatingSystem) {
+    'android' => android,
+    'ios' => ios,
+    _ => null,
+  };
+}
+
 class Connection {
   Connection(
     String address,
@@ -50,14 +64,17 @@ class Connection {
     name: data['deviceName'],
   );
   static String get defaultDeviceName =>
-      Platform.isIOS ? 'iOS 设备' : 'Android 手机';
+      DevicePlatform.current == DevicePlatform.ios ? 'iOS 设备' : 'Android 手机';
   final String? installation;
   final String deviceName;
+  final DevicePlatform? devicePlatform = DevicePlatform.current;
   void identify(HttpHeaders headers) {
     headers.set('X-Device-ID', deviceId);
     if (installation != null) {
       headers.set('X-Device-Instance', installation!);
       headers.set('X-Device-Name', base64.encode(utf8.encode(deviceName)));
+      final platform = devicePlatform;
+      if (platform != null) headers.set('X-Device-Platform', platform.name);
     }
   }
 

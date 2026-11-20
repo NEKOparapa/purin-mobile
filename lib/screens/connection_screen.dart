@@ -315,6 +315,7 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                 final conn = session.connection;
                 final connected = conn != null;
                 final showForm = !connected || _editing;
+                final platform = DevicePlatform.current?.label ?? '未知';
 
                 return ListView(
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 40),
@@ -332,6 +333,7 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                             highlight: session.error == null,
                           ),
                           _FactRow(label: '设备名称', value: conn.deviceName),
+                          _FactRow(label: '设备平台', value: platform),
                           _FactRow(label: '设备 ID', value: conn.deviceId),
                           _FactRow(label: '服务地址', value: conn.url),
                           Padding(
@@ -362,6 +364,7 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                             maxLength: 80,
                             textInputAction: TextInputAction.next,
                           ),
+                          _FactRow(label: '设备平台', value: platform),
                           _InlineField(
                             label: '设备 ID',
                             controller: _deviceId,
