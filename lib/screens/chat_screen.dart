@@ -10,7 +10,6 @@ import '../widgets/question_cards.dart';
 import '../widgets/shared.dart';
 import 'connection_screen.dart';
 import 'inbox_screen.dart';
-import 'memory_schedule_screen.dart';
 import 'memory_screen.dart';
 
 enum _HomeTab { chat, memory, inbox }
@@ -105,9 +104,6 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _settings() => _open('连接与采集', ConnectionScreen(session: widget.session));
-
-  void _openSchedule() =>
-      _open('记忆整理', MemoryScheduleScreen(session: widget.session));
 
   void _toggleSearch() {
     setState(() {
@@ -220,12 +216,6 @@ class _ChatScreenState extends State<ChatScreen> {
                 Navigator.of(context).pop();
                 _selectTab(tab);
               },
-              onSchedule: connected
-                  ? () {
-                      Navigator.of(context).pop();
-                      _openSchedule();
-                    }
-                  : null,
               onSettings: () {
                 Navigator.of(context).pop();
                 _settings();
@@ -312,7 +302,6 @@ class _ChatScreenState extends State<ChatScreen> {
                               inbox: session.inbox,
                               onMenu: _openDrawer,
                               onSearchToggle: _toggleSearch,
-                              onSchedule: connected ? _openSchedule : null,
                               onRefreshInbox: session.inbox.refresh,
                             ),
                           ),
@@ -517,7 +506,6 @@ class _FloatingHeader extends StatelessWidget {
     required this.inbox,
     required this.onMenu,
     required this.onSearchToggle,
-    required this.onSchedule,
     required this.onRefreshInbox,
   });
 
@@ -528,7 +516,6 @@ class _FloatingHeader extends StatelessWidget {
   final DeviceInbox inbox;
   final VoidCallback onMenu;
   final VoidCallback onSearchToggle;
-  final VoidCallback? onSchedule;
   final VoidCallback onRefreshInbox;
 
   @override
@@ -549,13 +536,7 @@ class _FloatingHeader extends StatelessWidget {
         onPressed: onSearchToggle,
       );
     } else if (tab == _HomeTab.memory) {
-      rightButton = onSchedule != null
-          ? GlassIconButton(
-              icon: Icons.event_repeat_rounded,
-              tooltip: '记忆整理',
-              onPressed: onSchedule,
-            )
-          : const SizedBox(width: 42, height: 42);
+      rightButton = const SizedBox(width: 42, height: 42);
     } else {
       rightButton = GlassIconButton(
         icon: Icons.refresh_rounded,
@@ -617,7 +598,6 @@ class _GlassSidebarDrawer extends StatelessWidget {
     required this.showInboxTab,
     required this.inbox,
     required this.onSelectTab,
-    required this.onSchedule,
     required this.onSettings,
   });
 
@@ -627,7 +607,6 @@ class _GlassSidebarDrawer extends StatelessWidget {
   final bool showInboxTab;
   final DeviceInbox inbox;
   final ValueChanged<_HomeTab> onSelectTab;
-  final VoidCallback? onSchedule;
   final VoidCallback onSettings;
 
   @override
@@ -759,27 +738,6 @@ class _GlassSidebarDrawer extends StatelessWidget {
                                   badgeCount: inbox.unread,
                                   onTap: () => onSelectTab(_HomeTab.inbox),
                                 ),
-                              ),
-                            ],
-                            if (onSchedule != null) ...[
-                              Padding(
-                                padding: const EdgeInsets.symmetric(
-                                  horizontal: 12,
-                                  vertical: 14,
-                                ),
-                                child: Divider(
-                                  height: 0.6,
-                                  thickness: 0.6,
-                                  color: atmo.hairline,
-                                ),
-                              ),
-                              _DrawerNavItem(
-                                label: '记忆整理计划',
-                                icon: Icons.event_repeat_rounded,
-                                activeIcon: Icons.event_repeat_rounded,
-                                selected: false,
-                                trailingChevron: true,
-                                onTap: onSchedule!,
                               ),
                             ],
                           ],
@@ -1232,7 +1190,7 @@ class _EmptyThread extends StatelessWidget {
                     Text(
                       connected
                           ? '在下方输入框写下想法，Wintermute 会安静陪你处理日常。'
-                          : '填入服务地址与设备令牌，即可开始对话与跨设备同步。',
+                          : '从管理面板获取配对码，即可开始对话与跨设备同步。',
                       style: TextStyle(
                         fontSize: 14,
                         height: 1.6,

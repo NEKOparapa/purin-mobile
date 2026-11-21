@@ -102,6 +102,63 @@ class ApiError implements Exception {
 }
 
 class AgentApi {
+  ({String url, String code, String token})? _pairAttempt;
+
+  Future<Connection> pair(
+    String value,
+    String address, {
+    required String installation,
+    required String name,
+  }) async {
+    final input = value.trim();
+    final codePattern = RegExp(r'^[0-9]{5}-?[0-9]{5}$');
+    final shortCode = codePattern.hasMatch(input);
+    final uri = Uri.tryParse((shortCode ? address : input).trim());
+    final code = shortCode
+        ? input
+        : uri?.fragment.startsWith('wm-pair=') == true
+        ? uri!.fragment.substring('wm-pair='.length)
+        : '';
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasQuery ||
+        (shortCode && uri.hasFragment) ||
+        (uri.path.isNotEmpty && uri.path != '/') ||
+        !codePattern.hasMatch(code)) {
+      throw const FormatException('请粘贴完整配对链接，或填写 HTTPS 服务地址和配对码');
+    }
+    final url = uri.origin;
+    final normalized = code.replaceAll('-', '');
+    final previous = _pairAttempt;
+    final random = Random.secure();
+    final token = previous?.url == url && previous?.code == normalized
+        ? previous!.token
+        : base64Url
+              .encode(List.generate(32, (_) => random.nextInt(256)))
+              .replaceAll('=', '');
+    _pairAttempt = (url: url, code: normalized, token: token);
+    final response = await _send(
+      url,
+      'devices/pair',
+      body: {
+        'code': normalized,
+        'token': token,
+        'installation': installation,
+        'device_type': 'mobile',
+        'device_name': name,
+      },
+    );
+    final id = response['device_id'];
+    if (id is! String || !RegExp(r'^mobile-[a-f0-9]{24}$').hasMatch(id)) {
+      throw const FormatException('后端返回的设备信息无效');
+    }
+    return Connection(url, id, token, installation: installation, name: name);
+  }
+
+  void finishPairing() => _pairAttempt = null;
+
   Future<Uint8List> chatImage(Connection connection, String id) async {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
     Future<Uint8List> load() async {
@@ -176,21 +233,41 @@ class AgentApi {
     Uint8List? jpeg,
     Map<String, String> headers = const {},
     Future<void>? cancel,
+  }) => _send(
+    connection.url,
+    path,
+    connection: connection,
+    body: body,
+    jpeg: jpeg,
+    headers: headers,
+    cancel: cancel,
+  );
+
+  Future<Json> _send(
+    String url,
+    String path, {
+    Connection? connection,
+    Json? body,
+    Uint8List? jpeg,
+    Map<String, String> headers = const {},
+    Future<void>? cancel,
   }) async {
     final client = HttpClient()..connectionTimeout = const Duration(seconds: 5);
     if (cancel != null) cancel.then((_) => client.close(force: true));
     Future<Json> perform() async {
-      final uri = Uri.parse('${connection.url}/v1/$path');
+      final uri = Uri.parse('$url/v1/$path');
       final request = await client.openUrl(
         body == null && jpeg == null ? 'GET' : 'POST',
         uri,
       );
       request.followRedirects = false;
-      connection.identify(request.headers);
-      request.headers.set(
-        HttpHeaders.authorizationHeader,
-        'Bearer ${connection.token}',
-      );
+      if (connection != null) {
+        connection.identify(request.headers);
+        request.headers.set(
+          HttpHeaders.authorizationHeader,
+          'Bearer ${connection.token}',
+        );
+      }
       headers.forEach(request.headers.set);
       if (jpeg != null) {
         request.headers.contentType = ContentType('image', 'jpeg');

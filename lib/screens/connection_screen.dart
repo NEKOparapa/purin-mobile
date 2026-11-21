@@ -4,12 +4,9 @@ import '../data/agent_api.dart';
 import '../data/mobile_session.dart';
 import '../widgets/app_theme.dart';
 import '../widgets/shared.dart';
-import 'api_key_settings_screen.dart';
 import 'mobile_connectors_screen.dart';
-import 'memory_schedule_screen.dart';
 
-/// Paginated Apple-style Settings Hub mirroring Wintermute Desktop's 6 categories:
-/// 连接 / 连接器 / 接口密钥 / 记忆整理 / 外观 / 信息采集.
+/// Settings for this device's connection, connectors, appearance and collection.
 class ConnectionScreen extends StatelessWidget {
   const ConnectionScreen({super.key, required this.session});
   final MobileSession session;
@@ -61,12 +58,11 @@ class ConnectionScreen extends StatelessWidget {
                 final connected = conn != null;
                 final connSubtitle = connected
                     ? '已连接 · ${conn.deviceName}'
-                    : '未连接，点击配置服务地址与令牌';
+                    : '未连接，点击配对设备';
 
                 return ListView(
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 40),
                   children: [
-                    // Group 1: 连接与能力 (mirrors Desktop: 连接 / 连接器 / 接口密钥)
                     SettingsSection(
                       title: '能力与连接',
                       children: [
@@ -97,39 +93,13 @@ class ConnectionScreen extends StatelessWidget {
                             MobileConnectorsScreen(session: session),
                           ),
                         ),
-                        SettingsTile(
-                          leading: const _CategoryIcon(icon: Icons.key_rounded),
-                          title: '接口密钥',
-                          subtitle: connected ? '管理后端服务接口密钥' : '连接服务后可管理接口密钥',
-                          showChevron: true,
-                          onTap: () => _push(
-                            context,
-                            ApiKeySettingsScreen(session: session),
-                          ),
-                        ),
                       ],
                     ),
                     const SizedBox(height: 24),
 
-                    // Group 2: 通用 (mirrors Desktop: 记忆整理 / 外观)
                     SettingsSection(
                       title: '通用',
                       children: [
-                        SettingsTile(
-                          leading: const _CategoryIcon(
-                            icon: Icons.event_repeat_rounded,
-                          ),
-                          title: '记忆整理',
-                          subtitle: connected
-                              ? '配置跨设备记忆整理周期与时间'
-                              : '连接服务后可配置整理计划',
-                          showChevron: true,
-                          enabled: connected,
-                          onTap: () => _push(
-                            context,
-                            MemoryScheduleScreen(session: session),
-                          ),
-                        ),
                         ValueListenableBuilder<ThemeMode>(
                           valueListenable: session.themeMode,
                           builder: (context, mode, _) => SettingsTile(
@@ -149,7 +119,6 @@ class ConnectionScreen extends StatelessWidget {
                     ),
                     const SizedBox(height: 24),
 
-                    // Group 3: 信息采集 (mirrors Desktop: 信息采集)
                     SettingsSection(
                       title: '设备与采集',
                       children: [
@@ -230,6 +199,8 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
   late final _token = TextEditingController(
     text: widget.session.connection?.token,
   );
+  final _pairValue = TextEditingController();
+  bool _manual = false;
   bool _editing = false;
   bool _obscureToken = true;
   bool _working = false;
@@ -248,6 +219,7 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
     _deviceId.dispose();
     _name.dispose();
     _token.dispose();
+    _pairValue.dispose();
     super.dispose();
   }
 
@@ -261,6 +233,8 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
       _feedback = null;
       _connectionError = false;
       _editing = true;
+      _manual = false;
+      _pairValue.clear();
     });
   }
 
@@ -271,19 +245,30 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
       _feedback = null;
     });
     try {
-      final connection = Connection(
-        _url.text,
-        _deviceId.text,
-        _token.text,
-        installation: widget.session.installation,
-        name: _name.text,
-      );
+      final connection = _manual
+          ? Connection(
+              _url.text,
+              _deviceId.text,
+              _token.text,
+              installation: widget.session.installation,
+              name: _name.text,
+            )
+          : await widget.session.api.pair(
+              _pairValue.text,
+              _url.text,
+              installation: widget.session.installation!,
+              name: _name.text,
+            );
       final ok = await widget.session.configure(connection);
+      if (ok) widget.session.api.finishPairing();
       if (mounted) {
         setState(() {
           _connectionError = !ok;
           _feedback = ok ? '已验证并保存连接' : widget.session.error;
-          if (ok) _editing = false;
+          if (ok) {
+            _editing = false;
+            _pairValue.clear();
+          }
         });
       }
     } on FormatException catch (e) {
@@ -291,6 +276,25 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
         setState(() {
           _connectionError = true;
           _feedback = e.message;
+        });
+      }
+    } on ApiError catch (e) {
+      if (mounted) {
+        setState(() {
+          _connectionError = true;
+          _feedback = switch (e.status) {
+            403 => '配对码无效、已过期或已使用',
+            404 => '后端尚未启用设备配对',
+            429 => '尝试次数过多，请稍后再试',
+            _ => '配对失败，请检查服务地址后重试',
+          };
+        });
+      }
+    } on Exception {
+      if (mounted) {
+        setState(() {
+          _connectionError = true;
+          _feedback = '连接失败，请检查网络和服务地址后重试';
         });
       }
     } finally {
@@ -341,6 +345,64 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                             child: FilledButton.tonal(
                               onPressed: _startEditing,
                               child: const Text('编辑连接'),
+                            ),
+                          ),
+                        ],
+                      )
+                    else if (!_manual)
+                      SettingsSection(
+                        title: '配对设备',
+                        footer: '从管理面板复制配对链接。已有服务地址时，可以只输入配对码。',
+                        dividers: true,
+                        children: [
+                          _InlineField(
+                            label: '配对码或链接',
+                            controller: _pairValue,
+                            hintText: '从管理面板复制',
+                            textInputAction: TextInputAction.go,
+                            onSubmitted: (_) {
+                              if (!_working && session.ready) _connect();
+                            },
+                          ),
+                          ValueListenableBuilder<TextEditingValue>(
+                            valueListenable: _pairValue,
+                            builder: (context, value, _) =>
+                                value.text.trim().startsWith('https://')
+                                ? const SizedBox.shrink()
+                                : _InlineField(
+                                    label: '服务地址',
+                                    controller: _url,
+                                    hintText: 'https://wintermute.example',
+                                    keyboardType: TextInputType.url,
+                                  ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: FilledButton(
+                                    onPressed: _working || !session.ready
+                                        ? null
+                                        : _connect,
+                                    child: Text(_working ? '正在配对…' : '配对并连接'),
+                                  ),
+                                ),
+                                TextButton(
+                                  onPressed: _working
+                                      ? null
+                                      : () => setState(() => _manual = true),
+                                  child: const Text('手动配置'),
+                                ),
+                                if (connected)
+                                  TextButton(
+                                    onPressed: _working
+                                        ? null
+                                        : () =>
+                                              setState(() => _editing = false),
+                                    child: const Text('取消'),
+                                  ),
+                              ],
                             ),
                           ),
                         ],
@@ -408,6 +470,12 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                                           )
                                         : const Text('验证并保存'),
                                   ),
+                                ),
+                                TextButton(
+                                  onPressed: _working
+                                      ? null
+                                      : () => setState(() => _manual = false),
+                                  child: const Text('使用配对码'),
                                 ),
                                 if (connected && _editing) ...[
                                   const SizedBox(width: 8),

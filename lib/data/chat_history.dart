@@ -4,63 +4,16 @@ import 'agent_api.dart';
 
 /// One authenticated connection's chat projection. Server pages are newest first.
 class ChatHistory {
-  final _pages =
-      <String, ({String head, List<Json> rows, Map<String, int> indexes})>{};
-  DateTime? _retryDialogue;
+  ({String head, List<Json> rows, Map<String, int> indexes})? _page;
 
   Future<List<Json>> read(AgentApi api, Connection connection) async {
-    if (_retryDialogue == null || !DateTime.now().isBefore(_retryDialogue!)) {
-      try {
-        final rows = await _readView(api, connection, 'dialogue');
-        _retryDialogue = null;
-        return rows.reversed.toList();
-      } on ApiError catch (e) {
-        if (e.status != 400 || e.code != 'invalid_query') rethrow;
-        // Check again after an in-place server upgrade.
-        _retryDialogue = DateTime.now().add(const Duration(minutes: 1));
-      }
-    }
-    final layers = await Future.wait([
-      _readView(api, connection, 'conversation'),
-      _readView(api, connection, 'notification'),
-    ]);
-    // Older servers date each journal group by its input and return its output
-    // just above it, without an output timestamp. Use that group's time to merge.
-    final rows = <({Json row, int time, int order})>[];
-    for (var i = 0; i < layers.length; i++) {
-      var at = 0;
-      for (final row in layers[i].reversed) {
-        final timestamp = row['occurred_at'] as String?;
-        if (timestamp != null) {
-          at = DateTime.parse(timestamp).microsecondsSinceEpoch;
-        }
-        if (row['role'] == 'assistant' || (i == 0 && row['role'] == 'user')) {
-          rows.add((
-            row: {...row, 'layer': i == 0 ? 'conversation' : 'notification'},
-            time: at,
-            order: rows.length,
-          ));
-        }
-      }
-    }
-    rows.sort(
-      (a, b) => a.time == b.time
-          ? a.order.compareTo(b.order)
-          : a.time.compareTo(b.time),
-    );
-    return [for (final entry in rows) entry.row];
-  }
-
-  Future<List<Json>> _readView(
-    AgentApi api,
-    Connection conn,
-    String view,
-  ) async {
-    final path = 'history?view=$view&limit=100';
-    var page = await api.request(conn, path);
+    const path = 'history?view=dialogue&limit=100';
+    var page = await api.request(connection, path);
     final head = jsonEncode(page);
-    final cached = _pages[view];
-    if (cached?.head == head) return cached!.rows;
+    final cached = _page;
+    if (cached != null && cached.head == head) {
+      return cached.rows.reversed.toList();
+    }
     final ids = <String>{};
     final cursors = <String>{};
     final rows = <Json>[];
@@ -92,17 +45,17 @@ class ChatHistory {
         throw const FormatException('服务端返回了重复的历史分页位置');
       }
       page = await api.request(
-        conn,
+        connection,
         '$path&cursor=${Uri.encodeQueryComponent(cursor)}',
       );
     }
-    _pages[view] = (
+    _page = (
       head: head,
       rows: rows,
       indexes: {
         for (var i = 0; i < rows.length; i++) rows[i]['id'] as String: i,
       },
     );
-    return rows;
+    return rows.reversed.toList();
   }
 }
