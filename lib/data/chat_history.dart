@@ -5,6 +5,7 @@ import 'agent_api.dart';
 /// One authenticated connection's chat projection. Server pages are newest first.
 class ChatHistory {
   ({String head, List<Json> rows, Map<String, int> indexes})? _page;
+  bool get loaded => _page != null;
 
   Future<List<Json>> read(AgentApi api, Connection connection) async {
     const path = 'history?view=dialogue&limit=100';

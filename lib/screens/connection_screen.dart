@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'pairing_scanner.dart';
 import '../data/agent_api.dart';
 import '../data/mobile_session.dart';
 import '../widgets/app_theme.dart';
@@ -238,33 +239,49 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
     });
   }
 
+  Future<void> _scan() async {
+    final value = await Navigator.of(
+      context,
+    ).push<String>(appleRoute(const PairingScanner()));
+    if (!mounted || value == null) return;
+    _pairValue.text = value;
+    await _connect();
+  }
+
   Future<void> _connect() async {
+    final session = widget.session;
+    if (_working || !session.ready) return;
     FocusManager.instance.primaryFocus?.unfocus();
     setState(() {
       _working = true;
       _feedback = null;
     });
     try {
+      final installation = session.installation;
+      if (!_manual && installation == null) {
+        throw const FormatException('设备身份尚未就绪，请重新打开应用后重试。');
+      }
       final connection = _manual
           ? Connection(
               _url.text,
               _deviceId.text,
               _token.text,
-              installation: widget.session.installation,
+              installation: installation,
               name: _name.text,
             )
-          : await widget.session.api.pair(
+          : await session.api.pair(
               _pairValue.text,
-              _url.text,
-              installation: widget.session.installation!,
-              name: _name.text,
+              installation: installation!,
+              name:
+                  session.connection?.deviceName ??
+                  await session.signals.pairingName(),
             );
-      final ok = await widget.session.configure(connection);
-      if (ok) widget.session.api.finishPairing();
+      final ok = await session.configure(connection);
+      if (ok) session.api.finishPairing();
       if (mounted) {
         setState(() {
           _connectionError = !ok;
-          _feedback = ok ? '已验证并保存连接' : widget.session.error;
+          _feedback = ok ? '已验证并保存连接' : session.error;
           if (ok) {
             _editing = false;
             _pairValue.clear();
@@ -279,12 +296,14 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
         });
       }
     } on ApiError catch (e) {
+      if (!_manual && e.status == 409) session.api.finishPairing();
       if (mounted) {
         setState(() {
           _connectionError = true;
           _feedback = switch (e.status) {
-            403 => '配对码无效、已过期或已使用',
+            403 => '配对链接无效、已过期或已使用',
             404 => '后端尚未启用设备配对',
+            409 => '设备 ID 冲突，请重新配对',
             429 => '尝试次数过多，请稍后再试',
             _ => '配对失败，请检查服务地址后重试',
           };
@@ -352,29 +371,29 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                     else if (!_manual)
                       SettingsSection(
                         title: '配对设备',
-                        footer: '从管理面板复制配对链接。已有服务地址时，可以只输入配对码。',
+                        footer: '在管理页点「添加设备」，扫码或粘贴链接即可连接。',
                         dividers: true,
                         children: [
                           _InlineField(
-                            label: '配对码或链接',
+                            label: '配对链接',
+                            keyboardType: TextInputType.url,
                             controller: _pairValue,
                             hintText: '从管理面板复制',
+                            enabled: !_working,
+                            onChanged: (value) {
+                              if (pairingAddress(value) != null) _connect();
+                            },
+                            trailing: IconButton(
+                              tooltip: '扫码配对',
+                              icon: const Icon(Icons.qr_code_scanner_rounded),
+                              onPressed: _working || !session.ready
+                                  ? null
+                                  : _scan,
+                            ),
                             textInputAction: TextInputAction.go,
                             onSubmitted: (_) {
                               if (!_working && session.ready) _connect();
                             },
-                          ),
-                          ValueListenableBuilder<TextEditingValue>(
-                            valueListenable: _pairValue,
-                            builder: (context, value, _) =>
-                                value.text.trim().startsWith('https://')
-                                ? const SizedBox.shrink()
-                                : _InlineField(
-                                    label: '服务地址',
-                                    controller: _url,
-                                    hintText: 'https://wintermute.example',
-                                    keyboardType: TextInputType.url,
-                                  ),
                           ),
                           Padding(
                             padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
@@ -410,7 +429,7 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                     else
                       SettingsSection(
                         title: connected ? '编辑服务连接' : '服务连接',
-                        footer: '将本机设备 ID 登记到后端，然后填写服务根地址与对应令牌。',
+                        footer: '填写已有连接的服务地址、设备 ID 和令牌。',
                         dividers: true,
                         children: [
                           _InlineField(
@@ -475,7 +494,7 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                                   onPressed: _working
                                       ? null
                                       : () => setState(() => _manual = false),
-                                  child: const Text('使用配对码'),
+                                  child: const Text('使用配对链接'),
                                 ),
                                 if (connected && _editing) ...[
                                   const SizedBox(width: 8),
@@ -1129,6 +1148,8 @@ class _InlineField extends StatelessWidget {
     this.obscureText = false,
     this.maxLength,
     this.onSubmitted,
+    this.onChanged,
+    this.enabled = true,
     this.trailing,
   });
 
@@ -1140,6 +1161,8 @@ class _InlineField extends StatelessWidget {
   final bool obscureText;
   final int? maxLength;
   final ValueChanged<String>? onSubmitted;
+  final ValueChanged<String>? onChanged;
+  final bool enabled;
   final Widget? trailing;
 
   @override
@@ -1170,6 +1193,8 @@ class _InlineField extends StatelessWidget {
               enableSuggestions: !obscureText,
               maxLength: maxLength,
               onSubmitted: onSubmitted,
+              onChanged: onChanged,
+              enabled: enabled,
               style: TextStyle(fontSize: 15, color: colors.onSurface),
               decoration: InputDecoration(
                 filled: false,

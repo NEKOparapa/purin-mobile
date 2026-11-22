@@ -1,0 +1,123 @@
+import 'dart:async';
+import 'package:flutter/material.dart';
+
+class ChatMascot extends StatefulWidget {
+  const ChatMascot({
+    super.key,
+    required this.input,
+    required this.focus,
+    required this.thinking,
+    required this.replyId,
+    required this.historyLoaded,
+    required this.compact,
+  });
+  final TextEditingController input;
+  final FocusNode focus;
+  final bool thinking, historyLoaded, compact;
+  final String? replyId;
+
+  @override
+  State<ChatMascot> createState() => _ChatMascotState();
+}
+
+class _ChatMascotState extends State<ChatMascot> {
+  Timer? _listeningTimer, _speakingTimer;
+  late String _lastText;
+  bool _listening = false, _speaking = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _lastText = widget.input.text;
+    widget.input.addListener(_onInput);
+    widget.focus.addListener(_onFocus);
+  }
+
+  void _onInput() {
+    final text = widget.input.text;
+    if (text == _lastText) return;
+    _lastText = text;
+    _listeningTimer?.cancel();
+    final typing = text.isNotEmpty && widget.focus.hasFocus;
+    if (typing != _listening) setState(() => _listening = typing);
+    if (typing) {
+      _listeningTimer = Timer(
+        const Duration(milliseconds: 1500),
+        () => setState(() => _listening = false),
+      );
+    }
+  }
+
+  void _onFocus() {
+    if (!widget.focus.hasFocus && _listening) {
+      _listeningTimer?.cancel();
+      setState(() => _listening = false);
+    }
+  }
+
+  @override
+  void didUpdateWidget(ChatMascot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.replyId != widget.replyId) {
+      _speakingTimer?.cancel();
+      _speaking = widget.replyId != null && oldWidget.historyLoaded;
+      if (_speaking) {
+        _speakingTimer = Timer(
+          const Duration(milliseconds: 3200),
+          () => setState(() => _speaking = false),
+        );
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _listeningTimer?.cancel();
+    _speakingTimer?.cancel();
+    widget.input.removeListener(_onInput);
+    widget.focus.removeListener(_onFocus);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mood = _listening
+        ? 'listening'
+        : widget.thinking
+        ? 'thinking'
+        : _speaking
+        ? 'speaking'
+        : 'idle';
+    final suffix = MediaQuery.disableAnimationsOf(context) ? '-still' : '';
+    final side = widget.compact ? 32.0 : 46.0;
+    final colors = Theme.of(context).colorScheme;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: colors.surfaceContainerHigh,
+          ),
+          child: Image.asset(
+            'assets/mascot/$mood$suffix.webp',
+            width: side,
+            height: side,
+            gaplessPlayback: true,
+            excludeFromSemantics: true,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          'Wintermute',
+          style: TextStyle(
+            fontSize: 13,
+            height: 1.3,
+            fontWeight: FontWeight.w500,
+            color: colors.onSurfaceVariant,
+          ),
+        ),
+      ],
+    );
+  }
+}

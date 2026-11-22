@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="wintermute_canvas">#16171B</color>
-    <color name="wintermute_accent">#A8B1FF</color>
-    <color name="wintermute_on_accent">#171A30</color>
+    <color name="wintermute_canvas">#211F1E</color>
+    <color name="wintermute_accent">#EAB092</color>
+    <color name="wintermute_on_accent">#34261F</color>
     <style name="WintermutePlatformTheme" parent="@android:style/Theme.Material.NoActionBar" />
 </resources>

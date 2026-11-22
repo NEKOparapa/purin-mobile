@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="wintermute_canvas">#FFFFFF</color>
-    <color name="wintermute_accent">#4959BD</color>
+    <color name="wintermute_canvas">#FBF9F5</color>
+    <color name="wintermute_accent">#975239</color>
     <color name="wintermute_on_accent">#FFFFFF</color>
     <!-- Older Android versions always draw light navigation icons. -->
     <color name="wintermute_navigation_bar">@android:color/black</color>

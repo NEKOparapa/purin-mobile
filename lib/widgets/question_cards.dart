@@ -161,7 +161,6 @@ class _QuestionCardState extends State<_QuestionCard> {
 
     return GlassCard(
       radius: 24,
-      blur: 18,
       color: atmo.dockFill,
       borderColor: atmo.dockBorder,
       padding: const EdgeInsets.fromLTRB(16, 12, 14, 14),

@@ -101,50 +101,64 @@ class ApiError implements Exception {
       : 'HTTP $status · $code';
 }
 
+final _pairingFragment = RegExp(r'^wm-pair=([0-9]{5}-?[0-9]{5})$');
+
+({String url, String code})? pairingAddress(String input) {
+  final uri = Uri.tryParse(input.trim());
+  if (uri == null ||
+      uri.scheme != 'https' ||
+      uri.host.isEmpty ||
+      uri.userInfo.isNotEmpty ||
+      uri.hasQuery ||
+      (uri.path.isNotEmpty && uri.path != '/')) {
+    return null;
+  }
+  final code = _pairingFragment.firstMatch(uri.fragment)?.group(1);
+  if (code == null) return null;
+  return (url: uri.origin, code: code.replaceAll('-', ''));
+}
+
 class AgentApi {
-  ({String url, String code, String token})? _pairAttempt;
+  ({String url, String code, String token, String id})? _pairAttempt;
 
   Future<Connection> pair(
-    String value,
-    String address, {
+    String value, {
     required String installation,
     required String name,
   }) async {
-    final input = value.trim();
-    final codePattern = RegExp(r'^[0-9]{5}-?[0-9]{5}$');
-    final shortCode = codePattern.hasMatch(input);
-    final uri = Uri.tryParse((shortCode ? address : input).trim());
-    final code = shortCode
-        ? input
-        : uri?.fragment.startsWith('wm-pair=') == true
-        ? uri!.fragment.substring('wm-pair='.length)
-        : '';
-    if (uri == null ||
-        uri.scheme != 'https' ||
-        uri.host.isEmpty ||
-        uri.userInfo.isNotEmpty ||
-        uri.hasQuery ||
-        (shortCode && uri.hasFragment) ||
-        (uri.path.isNotEmpty && uri.path != '/') ||
-        !codePattern.hasMatch(code)) {
-      throw const FormatException('请粘贴完整配对链接，或填写 HTTPS 服务地址和配对码');
+    final target = pairingAddress(value);
+    if (target == null) {
+      throw const FormatException('请扫描管理页的二维码或粘贴完整配对链接');
     }
-    final url = uri.origin;
-    final normalized = code.replaceAll('-', '');
-    final previous = _pairAttempt;
-    final random = Random.secure();
-    final token = previous?.url == url && previous?.code == normalized
-        ? previous!.token
-        : base64Url
-              .encode(List.generate(32, (_) => random.nextInt(256)))
-              .replaceAll('=', '');
-    _pairAttempt = (url: url, code: normalized, token: token);
+    final (:url, :code) = target;
+    var attempt = _pairAttempt;
+    if (attempt == null || attempt.url != url || attempt.code != code) {
+      final random = Random.secure();
+      final suffix = List.generate(
+        12,
+        (_) => random.nextInt(256).toRadixString(16).padLeft(2, '0'),
+      ).join();
+      final token = base64Url
+          .encode(List.generate(32, (_) => random.nextInt(256)))
+          .replaceAll('=', '');
+      attempt = _pairAttempt = (
+        url: url,
+        code: code,
+        token: token,
+        id: 'mobile-$suffix',
+      );
+    }
     final response = await _send(
       url,
       'devices/pair',
+      headers: {
+        'X-Device-ID': attempt.id,
+        if (DevicePlatform.current case final platform?)
+          'X-Device-Platform': platform.name,
+      },
       body: {
-        'code': normalized,
-        'token': token,
+        'code': code,
+        'token': attempt.token,
         'installation': installation,
         'device_type': 'mobile',
         'device_name': name,
@@ -154,7 +168,13 @@ class AgentApi {
     if (id is! String || !RegExp(r'^mobile-[a-f0-9]{24}$').hasMatch(id)) {
       throw const FormatException('后端返回的设备信息无效');
     }
-    return Connection(url, id, token, installation: installation, name: name);
+    return Connection(
+      url,
+      id,
+      attempt.token,
+      installation: installation,
+      name: name,
+    );
   }
 
   void finishPairing() => _pairAttempt = null;

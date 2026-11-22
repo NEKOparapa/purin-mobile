@@ -5,6 +5,23 @@ import 'agent_api.dart';
 
 class MobileSignals {
   static const _channel = MethodChannel('dev.wintermute/mobile_signals');
+  Future<String> pairingName() async {
+    try {
+      final value = await _channel.invokeMethod<String>('deviceName');
+      final name = value
+          ?.replaceAll(RegExp(r'[\x00-\x1f\x7f-\x9f]'), '')
+          .trim();
+      if (name != null && name.isNotEmpty) {
+        return String.fromCharCodes(name.runes.take(80));
+      }
+    } on PlatformException {
+      return Connection.defaultDeviceName;
+    } on MissingPluginException {
+      return Connection.defaultDeviceName;
+    }
+    return Connection.defaultDeviceName;
+  }
+
   static const unavailable = {
     'location': 'unsupported',
     'usage': 'unsupported',

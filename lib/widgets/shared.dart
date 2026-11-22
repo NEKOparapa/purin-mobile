@@ -1,90 +1,21 @@
-import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
 
-class BrandMark extends StatelessWidget {
-  const BrandMark({super.key, this.size = 34, this.circular = true});
-  final double size;
-  final bool circular;
-
-  @override
-  Widget build(BuildContext context) {
-    final dark = Theme.of(context).brightness == Brightness.dark;
-    return ExcludeSemantics(
-      child: Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: dark
-                ? const [Color(0xFF7CA7DA), Color(0xFF4D77AC)]
-                : const [Color(0xFF83B1E1), Color(0xFF4E7CB3)],
-          ),
-          shape: circular ? BoxShape.circle : BoxShape.rectangle,
-          borderRadius: circular ? null : BorderRadius.circular(size * .28),
-          boxShadow: [
-            BoxShadow(
-              color: const Color(
-                0xFF4E7CB3,
-              ).withValues(alpha: dark ? 0.25 : 0.2),
-              blurRadius: size * 0.35,
-              offset: Offset(0, size * 0.1),
-            ),
-          ],
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            for (final height in [7, 13, 19, 11, 8])
-              Container(
-                margin: EdgeInsets.symmetric(horizontal: size * .028),
-                width: size * .05,
-                height: size * height / 36,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.96),
-                  borderRadius: BorderRadius.circular(size),
-                ),
-              ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-const wordmarkStyle = TextStyle(
-  fontSize: 20,
-  height: 1.15,
-  letterSpacing: -0.5,
-  fontWeight: FontWeight.w600,
-);
-
-/// Full-bleed atmospheric gradient canvas matching the airy Apple sky-to-sand aesthetic.
 class AtmosphereBackground extends StatelessWidget {
   const AtmosphereBackground({super.key, required this.child});
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
-    final atmo = AppAtmosphere.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          stops: const [0.0, 0.36, 0.72, 1.0],
-          colors: atmo.canvasGradient,
-        ),
-      ),
+    return ColoredBox(
+      color: Theme.of(context).colorScheme.surface,
       child: child,
     );
   }
 }
 
-/// Standard secondary-page scaffold with transparent bar and atmospheric gradient.
+/// Standard secondary page with the same canvas as the chat.
 class AtmosphereScaffold extends StatelessWidget {
   const AtmosphereScaffold({
     super.key,
@@ -134,14 +65,13 @@ class AtmosphereScaffold extends StatelessWidget {
   }
 }
 
-/// Frosted translucent glass card with continuous rounded corners and subtle border.
+/// Rounded surface shared by settings and secondary pages.
 class GlassCard extends StatelessWidget {
   const GlassCard({
     super.key,
     required this.child,
-    this.radius = 24,
+    this.radius = 18,
     this.padding,
-    this.blur = 0,
     this.color,
     this.borderColor,
     this.shadows = true,
@@ -150,7 +80,6 @@ class GlassCard extends StatelessWidget {
   final Widget child;
   final double radius;
   final EdgeInsetsGeometry? padding;
-  final double blur;
   final Color? color;
   final Color? borderColor;
   final bool shadows;
@@ -168,17 +97,7 @@ class GlassCard extends StatelessWidget {
       ),
       child: child,
     );
-    if (blur > 0) {
-      inner = ClipRRect(
-        borderRadius: shape,
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-          child: inner,
-        ),
-      );
-    } else {
-      inner = ClipRRect(borderRadius: shape, child: inner);
-    }
+    inner = ClipRRect(borderRadius: shape, child: inner);
     if (!shadows) return inner;
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -186,8 +105,8 @@ class GlassCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: atmo.shadowColor,
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            blurRadius: 10,
+            offset: const Offset(0, 3),
           ),
         ],
       ),
@@ -196,14 +115,14 @@ class GlassCard extends StatelessWidget {
   }
 }
 
-/// Floating circular frosted glass button used in top bars (settings, search, refresh).
+/// Quiet navigation button with an optional unread indicator.
 class GlassIconButton extends StatelessWidget {
   const GlassIconButton({
     super.key,
     required this.icon,
     required this.onPressed,
     this.tooltip,
-    this.size = 42,
+    this.size = 48,
     this.iconSize = 20,
     this.badge = false,
     this.active = false,
@@ -219,73 +138,22 @@ class GlassIconButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final atmo = AppAtmosphere.of(context);
     final colors = Theme.of(context).colorScheme;
-    final button = ClipOval(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-        child: Material(
-          color: active
-              ? colors.primary.withValues(alpha: 0.16)
-              : atmo.floatingFill,
-          shape: CircleBorder(
-            side: BorderSide(
-              color: active
-                  ? colors.primary.withValues(alpha: 0.35)
-                  : atmo.cardBorder,
-              width: 0.9,
-            ),
-          ),
-          child: InkWell(
-            onTap: onPressed,
-            customBorder: const CircleBorder(),
-            child: SizedBox(
-              width: size,
-              height: size,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  Icon(
-                    icon,
-                    size: iconSize,
-                    color: active ? colors.primary : colors.onSurface,
-                  ),
-                  if (badge)
-                    Positioned(
-                      top: 9,
-                      right: 9,
-                      child: Container(
-                        width: 7,
-                        height: 7,
-                        decoration: BoxDecoration(
-                          color: colors.primary,
-                          shape: BoxShape.circle,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-          ),
-        ),
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      constraints: BoxConstraints(minWidth: size, minHeight: size),
+      style: IconButton.styleFrom(
+        backgroundColor: active ? colors.primaryContainer : Colors.transparent,
+        foregroundColor: active ? colors.primary : colors.onSurfaceVariant,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+      icon: Badge(
+        isLabelVisible: badge,
+        backgroundColor: colors.primary,
+        child: Icon(icon, size: iconSize),
       ),
     );
-    final wrapped = DecoratedBox(
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: atmo.shadowColor,
-            blurRadius: 14,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: button,
-    );
-    return tooltip == null
-        ? wrapped
-        : Tooltip(message: tooltip!, child: wrapped);
   }
 }
 

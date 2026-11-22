@@ -2,24 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 const lightColors = ColorScheme.light(
-  primary: Color(0xFF4F7EB5),
+  primary: Color(0xFF975239),
   onPrimary: Color(0xFFFFFFFF),
-  primaryContainer: Color(0xFFE7EFF8),
-  onPrimaryContainer: Color(0xFF1C1C1E),
-  secondary: Color(0xFF7EAAD8),
+  primaryContainer: Color(0xFFF3E5DA),
+  onPrimaryContainer: Color(0xFF362F29),
+  secondary: Color(0xFF975239),
   onSecondary: Color(0xFFFFFFFF),
-  secondaryContainer: Color(0xFFE3EBF4),
-  onSecondaryContainer: Color(0xFF1C1C1E),
-  surface: Color(0xFFF6F7FA),
+  secondaryContainer: Color(0xFFF3E3D5),
+  onSecondaryContainer: Color(0xFF362F29),
+  surface: Color(0xFFFBF9F5),
   surfaceContainerLowest: Color(0xFFFFFFFF),
-  surfaceContainerLow: Color(0xFFF9FAFC),
-  surfaceContainer: Color(0xFFFFFFFF),
-  surfaceContainerHigh: Color(0xFFF1F3F7),
-  surfaceContainerHighest: Color(0xFFE4E7EE),
-  onSurface: Color(0xFF1C1C1E),
-  onSurfaceVariant: Color(0xFF6E7480),
-  outline: Color(0xFFBFC6D2),
-  outlineVariant: Color(0xFFE3E6EE),
+  surfaceContainerLow: Color(0xFFF5F1EB),
+  surfaceContainer: Color(0xFFFFFEFD),
+  surfaceContainerHigh: Color(0xFFF2EEE8),
+  surfaceContainerHighest: Color(0xFFE4DDD3),
+  onSurface: Color(0xFF362F29),
+  onSurfaceVariant: Color(0xFF625B54),
+  outline: Color(0xFFC8BEB2),
+  outlineVariant: Color(0xFFE4DDD3),
   surfaceTint: Colors.transparent,
   error: Color(0xFFD13B4B),
   onError: Color(0xFFFFFFFF),
@@ -28,24 +28,24 @@ const lightColors = ColorScheme.light(
 );
 
 const darkColors = ColorScheme.dark(
-  primary: Color(0xFF84B2E5),
-  onPrimary: Color(0xFF0E1A2A),
-  primaryContainer: Color(0xFF233042),
-  onPrimaryContainer: Color(0xFFF2F4F8),
-  secondary: Color(0xFF6F9FD4),
-  onSecondary: Color(0xFF0E1A2A),
-  secondaryContainer: Color(0xFF242B38),
-  onSecondaryContainer: Color(0xFFF2F4F8),
-  surface: Color(0xFF14171F),
-  surfaceContainerLowest: Color(0xFF0F1218),
-  surfaceContainerLow: Color(0xFF181C25),
-  surfaceContainer: Color(0xFF1E222D),
-  surfaceContainerHigh: Color(0xFF252A37),
-  surfaceContainerHighest: Color(0xFF323847),
-  onSurface: Color(0xFFF2F4F8),
-  onSurfaceVariant: Color(0xFF969CA8),
-  outline: Color(0xFF4B5263),
-  outlineVariant: Color(0xFF2C313F),
+  primary: Color(0xFFEAB092),
+  onPrimary: Color(0xFF34261F),
+  primaryContainer: Color(0xFF45382F),
+  onPrimaryContainer: Color(0xFFF3EEE8),
+  secondary: Color(0xFFEAB092),
+  onSecondary: Color(0xFF34261F),
+  secondaryContainer: Color(0xFF4C392D),
+  onSecondaryContainer: Color(0xFFF3EEE8),
+  surface: Color(0xFF211F1E),
+  surfaceContainerLowest: Color(0xFF211F1E),
+  surfaceContainerLow: Color(0xFF272422),
+  surfaceContainer: Color(0xFF302C29),
+  surfaceContainerHigh: Color(0xFF2C2926),
+  surfaceContainerHighest: Color(0xFF453E37),
+  onSurface: Color(0xFFF3EEE8),
+  onSurfaceVariant: Color(0xFFC4BAB0),
+  outline: Color(0xFF62594F),
+  outlineVariant: Color(0xFF453E37),
   surfaceTint: Colors.transparent,
   error: Color(0xFFFF8690),
   onError: Color(0xFF36181D),
@@ -56,16 +56,12 @@ const darkColors = ColorScheme.dark(
 @immutable
 class AppAtmosphere extends ThemeExtension<AppAtmosphere> {
   const AppAtmosphere({
-    required this.canvasGradient,
-    required this.topFadeColor,
     required this.cardFill,
     required this.cardBorder,
     required this.dockFill,
     required this.dockBorder,
-    required this.floatingFill,
     required this.assistantBubbleFill,
     required this.userBubbleFill,
-    required this.userBubbleBorder,
     required this.inputFill,
     required this.segmentTrack,
     required this.segmentThumb,
@@ -77,16 +73,12 @@ class AppAtmosphere extends ThemeExtension<AppAtmosphere> {
     required this.shadowColor,
   });
 
-  final List<Color> canvasGradient;
-  final Color topFadeColor;
   final Color cardFill;
   final Color cardBorder;
   final Color dockFill;
   final Color dockBorder;
-  final Color floatingFill;
   final Color assistantBubbleFill;
   final Color userBubbleFill;
-  final Color userBubbleBorder;
   final Color inputFill;
   final Color segmentTrack;
   final Color segmentThumb;
@@ -98,57 +90,39 @@ class AppAtmosphere extends ThemeExtension<AppAtmosphere> {
   final Color shadowColor;
 
   static const light = AppAtmosphere(
-    canvasGradient: [
-      Color(0xFFB8CDE8),
-      Color(0xFFD2E0F2),
-      Color(0xFFE7EAEF),
-      Color(0xFFF3E8DA),
-    ],
-    topFadeColor: Color(0xFFB8CDE8),
-    cardFill: Color(0xC7FFFFFF),
-    cardBorder: Color(0xD9FFFFFF),
-    dockFill: Color(0xEBFFFFFF),
-    dockBorder: Color(0xE6FFFFFF),
-    floatingFill: Color(0xCCFFFFFF),
-    assistantBubbleFill: Color(0xEBFFFFFF),
-    userBubbleFill: Color(0x4A8BA1BC),
-    userBubbleBorder: Color(0x45FFFFFF),
-    inputFill: Color(0x0B1C1C1E),
-    segmentTrack: Color(0x111C1C1E),
-    segmentThumb: Color(0xF5FFFFFF),
-    activeTabPill: Color(0x121C1C1E),
-    switchActiveTrack: Color(0xFF84AED9),
-    switchInactiveTrack: Color(0x2E787880),
-    sectionHeader: Color(0xFF6B7382),
-    hairline: Color(0x121C1C1E),
-    shadowColor: Color(0x111B283C),
+    cardFill: Color(0xFFFFFEFD),
+    cardBorder: Color(0xFFE4DDD3),
+    dockFill: Color(0xFFFFFEFD),
+    dockBorder: Color(0xFFC8BEB2),
+    assistantBubbleFill: Color(0xFFF2EEE8),
+    userBubbleFill: Color(0xFFF3E3D5),
+    inputFill: Color(0xFFF5F1EB),
+    segmentTrack: Color(0xFFF2EEE8),
+    segmentThumb: Color(0xFFFFFEFD),
+    activeTabPill: Color(0xFFF3E5DA),
+    switchActiveTrack: Color(0xFF975239),
+    switchInactiveTrack: Color(0xFFC8BEB2),
+    sectionHeader: Color(0xFF625B54),
+    hairline: Color(0xFFE4DDD3),
+    shadowColor: Color(0x104B3821),
   );
 
   static const dark = AppAtmosphere(
-    canvasGradient: [
-      Color(0xFF151E2E),
-      Color(0xFF151923),
-      Color(0xFF17181E),
-      Color(0xFF1E1B18),
-    ],
-    topFadeColor: Color(0xFF151E2E),
-    cardFill: Color(0xBA202531),
-    cardBorder: Color(0x1AFFFFFF),
-    dockFill: Color(0xDF1D222D),
-    dockBorder: Color(0x1EFFFFFF),
-    floatingFill: Color(0xC7252B38),
-    assistantBubbleFill: Color(0xD9222733),
-    userBubbleFill: Color(0x525B7EA6),
-    userBubbleBorder: Color(0x24FFFFFF),
-    inputFill: Color(0x14FFFFFF),
-    segmentTrack: Color(0x1AFFFFFF),
-    segmentThumb: Color(0xFF323949),
-    activeTabPill: Color(0x1CFFFFFF),
-    switchActiveTrack: Color(0xFF6F9FD4),
-    switchInactiveTrack: Color(0x38787880),
-    sectionHeader: Color(0xFF8C94A3),
-    hairline: Color(0x18FFFFFF),
-    shadowColor: Color(0x40000000),
+    cardFill: Color(0xFF302C29),
+    cardBorder: Color(0xFF453E37),
+    dockFill: Color(0xFF302C29),
+    dockBorder: Color(0xFF62594F),
+    assistantBubbleFill: Color(0xFF2C2926),
+    userBubbleFill: Color(0xFF4C392D),
+    inputFill: Color(0xFF272422),
+    segmentTrack: Color(0xFF2C2926),
+    segmentThumb: Color(0xFF302C29),
+    activeTabPill: Color(0xFF45382F),
+    switchActiveTrack: Color(0xFFEAB092),
+    switchInactiveTrack: Color(0xFF62594F),
+    sectionHeader: Color(0xFFC4BAB0),
+    hairline: Color(0xFF453E37),
+    shadowColor: Color(0x30000000),
   );
 
   static AppAtmosphere of(BuildContext context) {
@@ -159,16 +133,12 @@ class AppAtmosphere extends ThemeExtension<AppAtmosphere> {
 
   @override
   AppAtmosphere copyWith({
-    List<Color>? canvasGradient,
-    Color? topFadeColor,
     Color? cardFill,
     Color? cardBorder,
     Color? dockFill,
     Color? dockBorder,
-    Color? floatingFill,
     Color? assistantBubbleFill,
     Color? userBubbleFill,
-    Color? userBubbleBorder,
     Color? inputFill,
     Color? segmentTrack,
     Color? segmentThumb,
@@ -179,16 +149,12 @@ class AppAtmosphere extends ThemeExtension<AppAtmosphere> {
     Color? hairline,
     Color? shadowColor,
   }) => AppAtmosphere(
-    canvasGradient: canvasGradient ?? this.canvasGradient,
-    topFadeColor: topFadeColor ?? this.topFadeColor,
     cardFill: cardFill ?? this.cardFill,
     cardBorder: cardBorder ?? this.cardBorder,
     dockFill: dockFill ?? this.dockFill,
     dockBorder: dockBorder ?? this.dockBorder,
-    floatingFill: floatingFill ?? this.floatingFill,
     assistantBubbleFill: assistantBubbleFill ?? this.assistantBubbleFill,
     userBubbleFill: userBubbleFill ?? this.userBubbleFill,
-    userBubbleBorder: userBubbleBorder ?? this.userBubbleBorder,
     inputFill: inputFill ?? this.inputFill,
     segmentTrack: segmentTrack ?? this.segmentTrack,
     segmentThumb: segmentThumb ?? this.segmentThumb,
@@ -204,27 +170,16 @@ class AppAtmosphere extends ThemeExtension<AppAtmosphere> {
   AppAtmosphere lerp(ThemeExtension<AppAtmosphere>? other, double t) {
     if (other is! AppAtmosphere) return this;
     return AppAtmosphere(
-      canvasGradient: [
-        for (var i = 0; i < canvasGradient.length; i++)
-          Color.lerp(canvasGradient[i], other.canvasGradient[i], t)!,
-      ],
-      topFadeColor: Color.lerp(topFadeColor, other.topFadeColor, t)!,
       cardFill: Color.lerp(cardFill, other.cardFill, t)!,
       cardBorder: Color.lerp(cardBorder, other.cardBorder, t)!,
       dockFill: Color.lerp(dockFill, other.dockFill, t)!,
       dockBorder: Color.lerp(dockBorder, other.dockBorder, t)!,
-      floatingFill: Color.lerp(floatingFill, other.floatingFill, t)!,
       assistantBubbleFill: Color.lerp(
         assistantBubbleFill,
         other.assistantBubbleFill,
         t,
       )!,
       userBubbleFill: Color.lerp(userBubbleFill, other.userBubbleFill, t)!,
-      userBubbleBorder: Color.lerp(
-        userBubbleBorder,
-        other.userBubbleBorder,
-        t,
-      )!,
       inputFill: Color.lerp(inputFill, other.inputFill, t)!,
       segmentTrack: Color.lerp(segmentTrack, other.segmentTrack, t)!,
       segmentThumb: Color.lerp(segmentThumb, other.segmentThumb, t)!,
@@ -263,7 +218,7 @@ ThemeData terminalTheme(ColorScheme colors) {
   return ThemeData(
     useMaterial3: true,
     brightness: colors.brightness,
-    scaffoldBackgroundColor: Colors.transparent,
+    scaffoldBackgroundColor: colors.surface,
     colorScheme: colors,
     extensions: [atmo],
     splashFactory: InkSparkle.splashFactory,
@@ -319,18 +274,18 @@ ThemeData terminalTheme(ColorScheme colors) {
     ),
     snackBarTheme: SnackBarThemeData(
       behavior: SnackBarBehavior.floating,
-      backgroundColor: dark ? const Color(0xFF282E3C) : const Color(0xFF1F242D),
+      backgroundColor: const Color(0xFF443A33),
       contentTextStyle: const TextStyle(color: Colors.white, fontSize: 14),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
       elevation: 4,
     ),
     dialogTheme: DialogThemeData(
-      backgroundColor: dark ? const Color(0xFF202531) : const Color(0xFFF8F9FB),
+      backgroundColor: colors.surfaceContainer,
       surfaceTintColor: Colors.transparent,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(26)),
     ),
     bottomSheetTheme: BottomSheetThemeData(
-      backgroundColor: dark ? const Color(0xFF1E232F) : const Color(0xFFF8F9FB),
+      backgroundColor: colors.surfaceContainer,
       surfaceTintColor: Colors.transparent,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),

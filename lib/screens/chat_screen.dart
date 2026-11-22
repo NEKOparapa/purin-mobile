@@ -1,18 +1,28 @@
 import 'dart:typed_data';
-import 'dart:ui';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import '../data/agent_api.dart';
 import '../data/device_inbox.dart';
 import '../data/mobile_session.dart';
 import '../widgets/app_theme.dart';
+import '../widgets/chat_mascot.dart';
 import '../widgets/question_cards.dart';
 import '../widgets/shared.dart';
 import 'connection_screen.dart';
 import 'inbox_screen.dart';
 import 'memory_screen.dart';
+import 'schedule_screen.dart';
 
-enum _HomeTab { chat, memory, inbox }
+enum _HomeTab {
+  chat('对话', Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded),
+  schedule('日程', Icons.calendar_month_outlined, Icons.calendar_month_rounded),
+  memory('记忆', Icons.auto_awesome_outlined, Icons.auto_awesome_rounded),
+  inbox('通知', Icons.notifications_none_rounded, Icons.notifications_rounded);
+
+  const _HomeTab(this.label, this.icon, this.activeIcon);
+  final String label;
+  final IconData icon, activeIcon;
+}
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key, required this.session});
@@ -68,11 +78,8 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _updateFocus() => setState(() {});
 
-  String _pageNameFor(_HomeTab tab) => switch (tab) {
-    _HomeTab.chat => 'Agent 对话',
-    _HomeTab.memory => '记忆',
-    _HomeTab.inbox => '通知',
-  };
+  String _pageNameFor(_HomeTab tab) =>
+      tab == _HomeTab.chat ? 'Agent 对话' : tab.label;
 
   void _openDrawer() {
     FocusManager.instance.primaryFocus?.unfocus();
@@ -122,7 +129,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _send() {
     final text = _input.text.trim();
-    if (text.isEmpty || widget.session.connection == null) return;
+    if (text.isEmpty) return;
+    if (widget.session.connection == null) {
+      _settings();
+      return;
+    }
     widget.session.send(text);
     _input.clear();
     if (_scroll.hasClients) {
@@ -150,19 +161,21 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget build(BuildContext context) {
     final session = widget.session;
     final media = MediaQuery.of(context);
-    final topPadding = media.padding.top;
-    final bottomPadding = media.padding.bottom;
-    final keyboardVisible = media.viewInsets.bottom > 60;
-    final headerHeight = topPadding + 58.0;
-    final showInboxTab = session.inbox.supported;
-    final dark = Theme.of(context).brightness == Brightness.dark;
-
+    final keyboard = media.viewInsets.bottom > 0;
+    final availableHeight =
+        media.size.height - media.viewInsets.bottom - media.padding.vertical;
+    final compact = keyboard || availableHeight < 480;
+    final android = Theme.of(context).platform == TargetPlatform.android;
+    final tabs = [
+      _HomeTab.chat,
+      if (android) _HomeTab.schedule else _HomeTab.memory,
+      if (session.inbox.supported) _HomeTab.inbox,
+    ];
     return AtmosphereBackground(
       child: ListenableBuilder(
         listenable: session,
         builder: (context, _) {
           final messages = session.messages;
-          final connected = session.connection != null;
           final scope = session.connection?.scope;
           if (scope != _scope || messages.length != _lastCount) {
             final follow =
@@ -190,28 +203,18 @@ class _ChatScreenState extends State<ChatScreen> {
                     )
                     .toList();
 
-          final atmo = AppAtmosphere.of(context);
-          final composerBottom = keyboardVisible
-              ? 8.0
-              : (bottomPadding > 0 ? bottomPadding + 6.0 : 14.0);
-
           return Scaffold(
             key: _scaffoldKey,
             backgroundColor: Colors.transparent,
-            resizeToAvoidBottomInset: true,
             drawerEdgeDragWidth: 44,
-            drawerScrimColor: Colors.black.withValues(
-              alpha: dark ? 0.45 : 0.18,
-            ),
+            drawerScrimColor: Colors.black.withValues(alpha: .22),
             onDrawerChanged: (opened) {
               if (opened) FocusManager.instance.primaryFocus?.unfocus();
             },
-            drawer: _GlassSidebarDrawer(
+            drawer: _SidebarDrawer(
               tab: _tab,
-              connected: connected,
-              deviceName: session.connection?.deviceName,
-              showInboxTab: showInboxTab,
               inbox: session.inbox,
+              tabs: tabs,
               onSelectTab: (tab) {
                 Navigator.of(context).pop();
                 _selectTab(tab);
@@ -221,161 +224,61 @@ class _ChatScreenState extends State<ChatScreen> {
                 _settings();
               },
             ),
-            body: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 720),
-                child: Column(
-                  children: [
-                    Expanded(
-                      child: Stack(
-                        children: [
-                          // Main content area
-                          Positioned.fill(
-                            child: IndexedStack(
-                              index: switch (_tab) {
-                                _HomeTab.chat => 0,
-                                _HomeTab.memory => 1,
-                                _HomeTab.inbox => showInboxTab ? 2 : 0,
-                              },
-                              children: [
-                                _buildChatBody(
-                                  context,
-                                  session: session,
-                                  messages: filteredMessages,
-                                  totalCount: messages.length,
-                                  connected: connected,
-                                  topInset:
-                                      headerHeight +
-                                      (_searching ? 60.0 : 8.0) +
-                                      (session.error != null ? 56.0 : 0.0),
-                                ),
-                                MemoryScreen(
-                                  embedded: true,
-                                  topInset: headerHeight + 10,
-                                  bottomInset: bottomPadding + 28,
-                                ),
-                                if (showInboxTab)
-                                  InboxScreen(
-                                    inbox: session.inbox,
-                                    embedded: true,
-                                    topInset: headerHeight + 10,
-                                    bottomInset: bottomPadding + 28,
-                                  ),
-                              ],
+            body: SafeArea(
+              child: Column(
+                children: [
+                  if (!keyboard || availableHeight >= 200)
+                    _header(session, messages, compact),
+                  Expanded(
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 720),
+                        child: IndexedStack(
+                          index: tabs.indexOf(_tab),
+                          children: [
+                            _chatPane(
+                              session,
+                              filteredMessages,
+                              empty: messages.isEmpty,
+                              keyboard: keyboard,
                             ),
-                          ),
-
-                          // Soft top atmospheric veil so scrolled content melts cleanly
-                          Positioned(
-                            top: 0,
-                            left: 0,
-                            right: 0,
-                            height: headerHeight + 22,
-                            child: IgnorePointer(
-                              child: DecoratedBox(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.topCenter,
-                                    end: Alignment.bottomCenter,
-                                    stops: const [0.0, 0.56, 1.0],
-                                    colors: [
-                                      atmo.topFadeColor.withValues(alpha: 0.92),
-                                      atmo.topFadeColor.withValues(alpha: 0.48),
-                                      atmo.topFadeColor.withValues(alpha: 0.0),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-
-                          // Minimal Floating Top Bar (completely punch-hole & Dynamic-Island safe)
-                          Positioned(
-                            top: topPadding + 8,
-                            left: 16,
-                            right: 16,
-                            child: _FloatingHeader(
-                              tab: _tab,
-                              connected: connected,
-                              searching: _searching,
-                              showInboxTab: showInboxTab,
-                              inbox: session.inbox,
-                              onMenu: _openDrawer,
-                              onSearchToggle: _toggleSearch,
-                              onRefreshInbox: session.inbox.refresh,
-                            ),
-                          ),
-
-                          // Floating Search Bar (when active on Chat tab)
-                          if (_tab == _HomeTab.chat && _searching)
-                            Positioned(
-                              top: headerHeight + 4,
-                              left: 16,
-                              right: 16,
-                              child: _FloatingSearchBar(
-                                controller: _searchInput,
-                                focusNode: _searchFocus,
-                                query: _searchQuery,
-                                matchCount: filteredMessages.length,
-                                onChanged: (v) =>
-                                    setState(() => _searchQuery = v.trim()),
-                                onClear: () {
-                                  _searchInput.clear();
-                                  setState(() => _searchQuery = '');
-                                },
-                              ),
-                            ),
-
-                          // Floating Error Pill (when session has an error)
-                          if (_tab == _HomeTab.chat && session.error != null)
-                            Positioned(
-                              top: headerHeight + (_searching ? 60.0 : 4.0),
-                              left: 16,
-                              right: 16,
-                              child: _FloatingErrorPill(
-                                message: session.error!,
-                                onRetry: connected ? session.sync : null,
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-
-                    // Pending Questions hovering above the floating input capsule
-                    if (_tab == _HomeTab.chat &&
-                        connected &&
-                        session.questions.isNotEmpty)
-                      QuestionCards(
-                        questions: session.questions,
-                        onAnswer: session.answerQuestion,
-                        onDismiss: session.dismissQuestion,
-                      ),
-
-                    // Minimal Floating Input Capsule (Chat tab only)
-                    AnimatedSize(
-                      duration: const Duration(milliseconds: 220),
-                      curve: Curves.easeOutCubic,
-                      child: _tab == _HomeTab.chat
-                          ? Padding(
-                              padding: EdgeInsets.fromLTRB(
-                                16,
-                                4,
-                                16,
-                                composerBottom,
-                              ),
-                              child: _FloatingComposer(
-                                connected: connected,
-                                ready: session.ready,
-                                input: _input,
-                                focusNode: _focus,
-                                onSend: _send,
+                            if (_tab == _HomeTab.schedule)
+                              ScheduleScreen(
+                                key: ObjectKey(session.connection),
+                                api: session.api,
+                                connection: session.connection,
+                                inbox: session.inbox,
                                 onSettings: _settings,
+                                onInbox: () => _selectTab(_HomeTab.inbox),
+                                onNotice: (notice) => _open(
+                                  '通知',
+                                  NoticeDetail(
+                                    inbox: session.inbox,
+                                    notice: notice,
+                                  ),
+                                ),
+                              )
+                            else if (android)
+                              const SizedBox.shrink()
+                            else
+                              const MemoryScreen(
+                                embedded: true,
+                                topInset: 8,
+                                bottomInset: 16,
                               ),
-                            )
-                          : const SizedBox.shrink(),
+                            if (session.inbox.supported)
+                              InboxScreen(
+                                inbox: session.inbox,
+                                embedded: true,
+                                topInset: 8,
+                                bottomInset: 16,
+                              ),
+                          ],
+                        ),
+                      ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           );
@@ -384,26 +287,219 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
+  Widget _header(MobileSession session, List<Json> messages, bool compact) {
+    final scope = session.connection?.scope;
+    final showInboxTab = session.inbox.supported;
+    final last = messages.lastOrNull;
+    final thinking =
+        last?['role'] == 'user' &&
+        const {'sending', 'queued', 'running'}.contains(last?['status']);
+    final reply = messages.reversed
+        .where((m) => m['role'] == 'assistant')
+        .firstOrNull;
+    return Padding(
+      padding: EdgeInsets.fromLTRB(8, compact ? 0 : 6, 8, compact ? 2 : 8),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ListenableBuilder(
+            listenable: session.inbox,
+            builder: (_, _) => GlassIconButton(
+              icon: Icons.menu_rounded,
+              tooltip: '导航菜单',
+              badge: showInboxTab && session.inbox.unread > 0,
+              onPressed: _openDrawer,
+            ),
+          ),
+          Expanded(
+            child: Center(
+              child: _tab == _HomeTab.chat
+                  ? ChatMascot(
+                      key: ValueKey(scope),
+                      input: _input,
+                      focus: _focus,
+                      thinking: thinking,
+                      replyId: reply?['id'] as String?,
+                      historyLoaded: session.chatHistoryLoaded,
+                      compact: compact,
+                    )
+                  : Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Text(
+                        _pageNameFor(_tab),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 18,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+          SizedBox(
+            width: 48,
+            child: _tab == _HomeTab.inbox
+                ? GlassIconButton(
+                    icon: Icons.refresh_rounded,
+                    tooltip: '刷新通知',
+                    onPressed: session.inbox.refresh,
+                  )
+                : _tab == _HomeTab.chat && (messages.isNotEmpty || _searching)
+                ? GlassIconButton(
+                    icon: _searching
+                        ? Icons.close_rounded
+                        : Icons.search_rounded,
+                    tooltip: _searching ? '关闭搜索' : '搜索对话',
+                    active: _searching,
+                    onPressed: _toggleSearch,
+                  )
+                : null,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _chatPane(
+    MobileSession session,
+    List<Json> filteredMessages, {
+    required bool empty,
+    required bool keyboard,
+  }) {
+    final connected = session.connection != null;
+    final welcome =
+        empty && (!connected || session.questions.isEmpty) && !_searching;
+    return Column(
+      children: [
+        if (_searching)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+            child: _FloatingSearchBar(
+              controller: _searchInput,
+              focusNode: _searchFocus,
+              query: _searchQuery,
+              matchCount: filteredMessages.length,
+              onChanged: (v) => setState(() => _searchQuery = v.trim()),
+              onClear: () {
+                _searchInput.clear();
+                setState(() => _searchQuery = '');
+              },
+            ),
+          ),
+        if (session.error != null && (!_searching || !keyboard))
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
+            child: _FloatingErrorPill(
+              message: session.error!,
+              onRetry: connected ? session.sync : null,
+            ),
+          ),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, bounds) => _chatContent(
+              session,
+              filteredMessages,
+              welcome: welcome,
+              keyboard: keyboard,
+              bounds: bounds,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _chatContent(
+    MobileSession session,
+    List<Json> filteredMessages, {
+    required bool welcome,
+    required bool keyboard,
+    required BoxConstraints bounds,
+  }) {
+    final connected = session.connection != null;
+    final showTopics = welcome && !keyboard && bounds.maxHeight > 300;
+    return Column(
+      children: [
+        Expanded(
+          child: welcome && bounds.maxHeight < 170
+              ? const SizedBox.shrink()
+              : welcome
+              ? const Align(
+                  alignment: Alignment.bottomCenter,
+                  child: _Greeting(),
+                )
+              : _buildChatBody(
+                  context,
+                  session: session,
+                  messages: filteredMessages,
+                ),
+        ),
+        if (session.questions.isNotEmpty &&
+            connected &&
+            (!_searching || !keyboard))
+          ConstrainedBox(
+            constraints: BoxConstraints(maxHeight: bounds.maxHeight * .38),
+            child: SingleChildScrollView(
+              child: QuestionCards(
+                questions: session.questions,
+                onAnswer: session.answerQuestion,
+                onDismiss: session.dismissQuestion,
+              ),
+            ),
+          ),
+        if (!_searching || !keyboard)
+          Padding(
+            key: const ValueKey('composer'),
+            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+            child: _Composer(
+              input: _input,
+              focusNode: _focus,
+              connected: connected,
+              ready: session.ready,
+              compact: bounds.maxHeight < 280 || keyboard,
+              onSettings: _settings,
+              onSend: _send,
+            ),
+          ),
+        if (showTopics) ...[
+          Wrap(
+            alignment: WrapAlignment.center,
+            spacing: 8,
+            children: [
+              _TopicButton(
+                label: '聊聊今天',
+                icon: Icons.wb_sunny_outlined,
+                onTap: () => _fillPrompt('我想跟你聊聊今天发生的事。'),
+              ),
+              _TopicButton(
+                label: '想想晚饭',
+                icon: Icons.rice_bowl_outlined,
+                onTap: () => _fillPrompt('今晚吃点什么好呢？'),
+              ),
+            ],
+          ),
+          const Spacer(),
+        ],
+      ],
+    );
+  }
+
+  void _fillPrompt(String text) {
+    _focus.requestFocus();
+    _input.value = TextEditingValue(
+      text: text,
+      selection: TextSelection.collapsed(offset: text.length),
+    );
+  }
+
   Widget _buildChatBody(
     BuildContext context, {
     required MobileSession session,
     required List<Json> messages,
-    required int totalCount,
-    required bool connected,
-    required double topInset,
   }) {
-    if (totalCount == 0) {
-      return _EmptyThread(
-        ready: session.ready,
-        connected: connected,
-        topInset: topInset,
-        onSettings: _settings,
-      );
-    }
     if (messages.isEmpty && _searchQuery.isNotEmpty) {
       return Center(
         child: Padding(
-          padding: EdgeInsets.only(top: topInset * 0.5),
+          padding: const EdgeInsets.all(16),
           child: GlassCard(
             radius: 22,
             padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
@@ -422,7 +518,7 @@ class _ChatScreenState extends State<ChatScreen> {
     return LayoutBuilder(
       builder: (context, layout) => ListView.builder(
         controller: _scroll,
-        padding: EdgeInsets.fromLTRB(16, topInset, 16, 10),
+        padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         itemCount: messages.length,
         itemBuilder: (context, index) {
@@ -474,6 +570,25 @@ String? _timestampHeader(Json current, Json? previous) {
   return '${cur.year}年${cur.month}月${cur.day}日 $hh:$mm';
 }
 
+class _Greeting extends StatelessWidget {
+  const _Greeting();
+  @override
+  Widget build(BuildContext context) => const FittedBox(
+    fit: BoxFit.scaleDown,
+    child: Padding(
+      padding: EdgeInsets.fromLTRB(16, 0, 16, 20),
+      child: Text(
+        '今天过得怎么样？',
+        style: TextStyle(
+          fontSize: 26,
+          fontWeight: FontWeight.w600,
+          letterSpacing: -.7,
+        ),
+      ),
+    ),
+  );
+}
+
 class _TimestampDivider extends StatelessWidget {
   const _TimestampDivider({required this.label});
   final String label;
@@ -497,284 +612,78 @@ class _TimestampDivider extends StatelessWidget {
   }
 }
 
-class _FloatingHeader extends StatelessWidget {
-  const _FloatingHeader({
+class _SidebarDrawer extends StatelessWidget {
+  const _SidebarDrawer({
     required this.tab,
-    required this.connected,
-    required this.searching,
-    required this.showInboxTab,
     required this.inbox,
-    required this.onMenu,
-    required this.onSearchToggle,
-    required this.onRefreshInbox,
-  });
-
-  final _HomeTab tab;
-  final bool connected;
-  final bool searching;
-  final bool showInboxTab;
-  final DeviceInbox inbox;
-  final VoidCallback onMenu;
-  final VoidCallback onSearchToggle;
-  final VoidCallback onRefreshInbox;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final title = switch (tab) {
-      _HomeTab.chat => 'Wintermute',
-      _HomeTab.memory => '记忆',
-      _HomeTab.inbox => '通知',
-    };
-
-    Widget rightButton;
-    if (tab == _HomeTab.chat) {
-      rightButton = GlassIconButton(
-        icon: searching ? Icons.close_rounded : Icons.search_rounded,
-        active: searching,
-        tooltip: searching ? '关闭搜索' : '搜索对话',
-        onPressed: onSearchToggle,
-      );
-    } else if (tab == _HomeTab.memory) {
-      rightButton = const SizedBox(width: 42, height: 42);
-    } else {
-      rightButton = GlassIconButton(
-        icon: Icons.refresh_rounded,
-        tooltip: '刷新通知',
-        onPressed: onRefreshInbox,
-      );
-    }
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        ListenableBuilder(
-          listenable: inbox,
-          builder: (_, _) => GlassIconButton(
-            icon: Icons.menu_rounded,
-            tooltip: '导航菜单',
-            badge: showInboxTab && inbox.unread > 0,
-            onPressed: onMenu,
-          ),
-        ),
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (tab == _HomeTab.chat && !connected) ...[
-              Container(
-                width: 6,
-                height: 6,
-                decoration: BoxDecoration(
-                  color: colors.onSurfaceVariant.withValues(alpha: 0.55),
-                  shape: BoxShape.circle,
-                ),
-              ),
-              const SizedBox(width: 6),
-            ],
-            Text(
-              title,
-              style: TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.3,
-                color: colors.onSurface.withValues(alpha: 0.86),
-              ),
-            ),
-          ],
-        ),
-        rightButton,
-      ],
-    );
-  }
-}
-
-/// Floating Apple-style frosted glass sidebar drawer (ChatGPT / iPadOS aesthetic).
-class _GlassSidebarDrawer extends StatelessWidget {
-  const _GlassSidebarDrawer({
-    required this.tab,
-    required this.connected,
-    required this.deviceName,
-    required this.showInboxTab,
-    required this.inbox,
+    required this.tabs,
     required this.onSelectTab,
     required this.onSettings,
   });
-
   final _HomeTab tab;
-  final bool connected;
-  final String? deviceName;
-  final bool showInboxTab;
   final DeviceInbox inbox;
+  final List<_HomeTab> tabs;
   final ValueChanged<_HomeTab> onSelectTab;
   final VoidCallback onSettings;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final atmo = AppAtmosphere.of(context);
-    final width = (MediaQuery.sizeOf(context).width * 0.78).clamp(264.0, 320.0);
-
     return Drawer(
-      width: width,
-      elevation: 0,
+      width: (MediaQuery.sizeOf(context).width * .76).clamp(0, 268).toDouble(),
       backgroundColor: Colors.transparent,
-      surfaceTintColor: Colors.transparent,
+      elevation: 0,
+      semanticLabel: '导航菜单',
       child: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(12, 10, 0, 12),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(30),
-              boxShadow: [
-                BoxShadow(
-                  color: atmo.shadowColor,
-                  blurRadius: 28,
-                  offset: const Offset(0, 10),
+          padding: const EdgeInsets.fromLTRB(8, 6, 0, 6),
+          child: Material(
+            color: colors.surfaceContainer,
+            clipBehavior: Clip.antiAlias,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(18),
+              side: BorderSide(color: colors.outlineVariant),
+            ),
+            child: Column(
+              children: [
+                Expanded(
+                  child: ListenableBuilder(
+                    listenable: inbox,
+                    builder: (_, _) => ListView.separated(
+                      padding: const EdgeInsets.all(10),
+                      itemCount: tabs.length,
+                      separatorBuilder: (_, _) => const SizedBox(height: 4),
+                      itemBuilder: (_, index) {
+                        final item = tabs[index];
+                        return _DrawerNavItem(
+                          label: item.label,
+                          icon: item.icon,
+                          activeIcon: item.activeIcon,
+                          selected: tab == item,
+                          badgeCount: item == _HomeTab.inbox ? inbox.unread : 0,
+                          onTap: () => onSelectTab(item),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+                Divider(
+                  indent: 14,
+                  endIndent: 14,
+                  height: 1,
+                  color: colors.outlineVariant,
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(10),
+                  child: _DrawerNavItem(
+                    label: '设置',
+                    icon: Icons.settings_outlined,
+                    activeIcon: Icons.settings_outlined,
+                    selected: false,
+                    onTap: onSettings,
+                  ),
                 ),
               ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(30),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-                child: Container(
-                  decoration: BoxDecoration(
-                    color: atmo.dockFill,
-                    borderRadius: BorderRadius.circular(30),
-                    border: Border.all(color: atmo.dockBorder, width: 0.9),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Brand Identity Header
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(20, 22, 20, 18),
-                        child: Row(
-                          children: [
-                            const BrandMark(size: 38),
-                            const SizedBox(width: 12),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    'Wintermute',
-                                    style: TextStyle(
-                                      fontSize: 17.5,
-                                      fontWeight: FontWeight.w600,
-                                      letterSpacing: -0.35,
-                                      color: colors.onSurface,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 2),
-                                  Row(
-                                    children: [
-                                      Container(
-                                        width: 6,
-                                        height: 6,
-                                        decoration: BoxDecoration(
-                                          color: connected
-                                              ? colors.primary
-                                              : colors.onSurfaceVariant
-                                                    .withValues(alpha: 0.45),
-                                          shape: BoxShape.circle,
-                                        ),
-                                      ),
-                                      const SizedBox(width: 6),
-                                      Expanded(
-                                        child: Text(
-                                          connected
-                                              ? (deviceName?.isNotEmpty == true
-                                                    ? deviceName!
-                                                    : '已连接')
-                                              : '尚未连接服务',
-                                          maxLines: 1,
-                                          overflow: TextOverflow.ellipsis,
-                                          style: TextStyle(
-                                            fontSize: 12.5,
-                                            color: colors.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      // Primary Navigation Items (infinitely scalable)
-                      Expanded(
-                        child: ListView(
-                          padding: const EdgeInsets.symmetric(horizontal: 12),
-                          children: [
-                            _DrawerNavItem(
-                              label: '对话',
-                              icon: Icons.chat_bubble_outline_rounded,
-                              activeIcon: Icons.chat_bubble_rounded,
-                              selected: tab == _HomeTab.chat,
-                              onTap: () => onSelectTab(_HomeTab.chat),
-                            ),
-                            const SizedBox(height: 4),
-                            _DrawerNavItem(
-                              label: '记忆',
-                              icon: Icons.auto_awesome_outlined,
-                              activeIcon: Icons.auto_awesome_rounded,
-                              selected: tab == _HomeTab.memory,
-                              onTap: () => onSelectTab(_HomeTab.memory),
-                            ),
-                            if (showInboxTab) ...[
-                              const SizedBox(height: 4),
-                              ListenableBuilder(
-                                listenable: inbox,
-                                builder: (_, _) => _DrawerNavItem(
-                                  label: '通知',
-                                  icon: Icons.notifications_none_rounded,
-                                  activeIcon: Icons.notifications_rounded,
-                                  selected: tab == _HomeTab.inbox,
-                                  badgeCount: inbox.unread,
-                                  onTap: () => onSelectTab(_HomeTab.inbox),
-                                ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-
-                      // Pinned Settings Footer
-                      Padding(
-                        padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
-                        child: Column(
-                          children: [
-                            Padding(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 10,
-                              ),
-                              child: Divider(
-                                height: 0.6,
-                                thickness: 0.6,
-                                color: atmo.hairline,
-                              ),
-                            ),
-                            const SizedBox(height: 8),
-                            _DrawerNavItem(
-                              label: '设置与连接',
-                              icon: Icons.settings_outlined,
-                              activeIcon: Icons.settings_outlined,
-                              selected: false,
-                              trailingChevron: true,
-                              onTap: onSettings,
-                            ),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
             ),
           ),
         ),
@@ -791,7 +700,6 @@ class _DrawerNavItem extends StatelessWidget {
     required this.selected,
     required this.onTap,
     this.badgeCount = 0,
-    this.trailingChevron = false,
   });
 
   final String label;
@@ -800,7 +708,6 @@ class _DrawerNavItem extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
   final int badgeCount;
-  final bool trailingChevron;
 
   @override
   Widget build(BuildContext context) {
@@ -808,10 +715,10 @@ class _DrawerNavItem extends StatelessWidget {
     final atmo = AppAtmosphere.of(context);
     return Material(
       color: selected ? atmo.activeTabPill : Colors.transparent,
-      borderRadius: BorderRadius.circular(18),
+      borderRadius: BorderRadius.circular(11),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(11),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12.5),
           child: Row(
@@ -853,12 +760,6 @@ class _DrawerNavItem extends StatelessWidget {
                       color: colors.primary,
                     ),
                   ),
-                )
-              else if (trailingChevron)
-                Icon(
-                  Icons.chevron_right_rounded,
-                  size: 18,
-                  color: colors.onSurfaceVariant.withValues(alpha: 0.6),
                 ),
             ],
           ),
@@ -891,7 +792,6 @@ class _FloatingSearchBar extends StatelessWidget {
     final atmo = AppAtmosphere.of(context);
     return GlassCard(
       radius: 22,
-      blur: 18,
       color: atmo.dockFill,
       borderColor: atmo.dockBorder,
       padding: const EdgeInsets.symmetric(horizontal: 6),
@@ -949,7 +849,6 @@ class _FloatingErrorPill extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return GlassCard(
       radius: 20,
-      blur: 16,
       color: colors.errorContainer.withValues(alpha: 0.92),
       borderColor: colors.error.withValues(alpha: 0.25),
       padding: const EdgeInsets.fromLTRB(14, 6, 8, 6),
@@ -981,158 +880,90 @@ class _FloatingErrorPill extends StatelessWidget {
   }
 }
 
-/// Pure, feather-light floating glass input capsule at the bottom of the Chat screen.
-class _FloatingComposer extends StatelessWidget {
-  const _FloatingComposer({
-    required this.connected,
-    required this.ready,
+class _Composer extends StatelessWidget {
+  const _Composer({
     required this.input,
     required this.focusNode,
-    required this.onSend,
+    required this.connected,
+    required this.ready,
+    required this.compact,
     required this.onSettings,
+    required this.onSend,
   });
-
-  final bool connected;
-  final bool ready;
   final TextEditingController input;
   final FocusNode focusNode;
-  final VoidCallback onSend;
-  final VoidCallback onSettings;
+  final bool connected, ready, compact;
+  final VoidCallback onSettings, onSend;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final atmo = AppAtmosphere.of(context);
-
-    if (!connected) {
-      return GlassCard(
-        radius: 26,
-        blur: 20,
-        color: atmo.dockFill,
-        borderColor: atmo.dockBorder,
-        child: Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: ready ? onSettings : null,
-            borderRadius: BorderRadius.circular(26),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
-              child: Row(
-                children: [
-                  Icon(
-                    Icons.link_rounded,
-                    size: 18,
-                    color: colors.onSurfaceVariant,
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: Text(
-                      '连接服务后即可开始对话',
-                      style: TextStyle(
-                        fontSize: 14.5,
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    '去设置',
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: colors.primary,
-                    ),
-                  ),
-                  const SizedBox(width: 2),
-                  Icon(
-                    Icons.chevron_right_rounded,
-                    size: 18,
-                    color: colors.primary,
-                  ),
-                ],
-              ),
-            ),
+    final field = TextField(
+      controller: input,
+      focusNode: focusNode,
+      minLines: 1,
+      maxLines: compact ? 2 : 4,
+      maxLength: 2000,
+      textInputAction: TextInputAction.newline,
+      style: TextStyle(fontSize: 16, height: 1.45, color: colors.onSurface),
+      decoration: const InputDecoration(
+        hintText: '想说点什么？',
+        counterText: '',
+        filled: false,
+        isDense: true,
+        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 9),
+        border: InputBorder.none,
+        focusedBorder: InputBorder.none,
+        enabledBorder: InputBorder.none,
+      ),
+    );
+    final send = ValueListenableBuilder(
+      valueListenable: input,
+      builder: (context, value, _) {
+        return IconButton.filled(
+          tooltip: '发送消息',
+          onPressed: ready && value.text.trim().isNotEmpty ? onSend : null,
+          style: IconButton.styleFrom(
+            backgroundColor: colors.primary,
+            foregroundColor: colors.onPrimary,
+            disabledBackgroundColor: colors.surfaceContainerHigh,
+            disabledForegroundColor: colors.onSurfaceVariant,
+            minimumSize: const Size.square(36),
+            tapTargetSize: MaterialTapTargetSize.padded,
           ),
-        ),
-      );
-    }
-
+          icon: const Icon(Icons.arrow_upward_rounded, size: 20),
+        );
+      },
+    );
+    final pair = TextButton(onPressed: onSettings, child: const Text('去连接'));
     return GlassCard(
-      radius: 26,
-      blur: 22,
-      color: atmo.dockFill,
-      borderColor: focusNode.hasFocus
-          ? colors.primary.withValues(alpha: 0.42)
-          : atmo.dockBorder,
-      padding: const EdgeInsets.fromLTRB(18, 4, 6, 4),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      radius: 20,
+      color: colors.surfaceContainer,
+      borderColor: focusNode.hasFocus ? colors.primary : colors.outline,
+      padding: const EdgeInsets.fromLTRB(8, 4, 6, 4),
+      child: Stack(
+        alignment: Alignment.bottomRight,
         children: [
-          Expanded(
-            child: TextField(
-              controller: input,
-              focusNode: focusNode,
-              minLines: 1,
-              maxLines: 4,
-              maxLength: 2000,
-              textInputAction: TextInputAction.newline,
-              style: TextStyle(
-                fontSize: 15.5,
-                height: 1.45,
-                color: colors.onSurface,
+          ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 48),
+            child: Padding(
+              padding: EdgeInsets.only(
+                right: compact ? (!connected && ready ? 124 : 50) : 0,
+                bottom: compact ? 0 : 44,
               ),
-              decoration: InputDecoration(
-                hintText: '发消息给 Wintermute…',
-                hintStyle: TextStyle(
-                  fontSize: 15,
-                  color: colors.onSurfaceVariant.withValues(alpha: 0.72),
-                ),
-                counterText: '',
-                filled: false,
-                isDense: true,
-                contentPadding: const EdgeInsets.symmetric(vertical: 11),
-                border: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                enabledBorder: InputBorder.none,
-              ),
+              child: field,
             ),
           ),
-          const SizedBox(width: 6),
-          Padding(
-            padding: const EdgeInsets.only(bottom: 4),
-            child: ValueListenableBuilder(
-              valueListenable: input,
-              builder: (context, value, _) {
-                final canSend = value.text.trim().isNotEmpty;
-                return AnimatedContainer(
-                  duration: const Duration(milliseconds: 160),
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: canSend
-                        ? colors.primary
-                        : colors.onSurface.withValues(alpha: 0.08),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Material(
-                    color: Colors.transparent,
-                    child: InkWell(
-                      onTap: canSend ? onSend : null,
-                      customBorder: const CircleBorder(),
-                      child: Tooltip(
-                        message: '发送消息',
-                        child: Icon(
-                          Icons.arrow_upward_rounded,
-                          size: 19,
-                          color: canSend
-                              ? colors.onPrimary
-                              : colors.onSurfaceVariant.withValues(alpha: 0.6),
-                        ),
-                      ),
-                    ),
-                  ),
-                );
-              },
-            ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              if (!compact) ...[
+                if (!connected && ready) pair,
+                const Spacer(),
+              ] else if (!connected && ready)
+                pair,
+              send,
+            ],
           ),
         ],
       ),
@@ -1140,79 +971,28 @@ class _FloatingComposer extends StatelessWidget {
   }
 }
 
-class _EmptyThread extends StatelessWidget {
-  const _EmptyThread({
-    required this.ready,
-    required this.connected,
-    required this.topInset,
-    required this.onSettings,
+class _TopicButton extends StatelessWidget {
+  const _TopicButton({
+    required this.label,
+    required this.icon,
+    required this.onTap,
   });
-  final bool ready, connected;
-  final double topInset;
-  final VoidCallback onSettings;
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return LayoutBuilder(
-      builder: (context, layout) => SingleChildScrollView(
-        padding: EdgeInsets.fromLTRB(24, topInset, 24, 24),
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: (layout.maxHeight - topInset - 24).clamp(
-              0,
-              double.infinity,
-            ),
-          ),
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 340),
-              child: GlassCard(
-                radius: 28,
-                padding: const EdgeInsets.fromLTRB(28, 32, 28, 30),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const BrandMark(size: 52),
-                    const SizedBox(height: 18),
-                    Text(
-                      connected ? '今天聊些什么？' : '连接你的 Agent',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 22,
-                        height: 1.3,
-                        letterSpacing: -0.5,
-                        fontWeight: FontWeight.w600,
-                        color: colors.onSurface,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      connected
-                          ? '在下方输入框写下想法，Wintermute 会安静陪你处理日常。'
-                          : '从管理面板获取配对码，即可开始对话与跨设备同步。',
-                      style: TextStyle(
-                        fontSize: 14,
-                        height: 1.6,
-                        color: colors.onSurfaceVariant,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                    if (!connected) ...[
-                      const SizedBox(height: 22),
-                      FilledButton.icon(
-                        onPressed: ready ? onSettings : null,
-                        label: const Text('设置连接'),
-                        icon: const Icon(Icons.arrow_forward_rounded, size: 17),
-                        iconAlignment: IconAlignment.end,
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
+    return OutlinedButton.icon(
+      onPressed: onTap,
+      icon: Icon(icon, size: 16),
+      label: Text(label),
+      style: OutlinedButton.styleFrom(
+        foregroundColor: colors.onSurfaceVariant,
+        side: BorderSide(color: colors.outlineVariant),
+        minimumSize: const Size(0, 36),
+        padding: const EdgeInsets.symmetric(horizontal: 14),
       ),
     );
   }
@@ -1270,78 +1050,48 @@ class _Message extends StatelessWidget {
                 : CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              if (user)
-                Semantics(
-                  label: '你',
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 11,
-                      horizontal: 15,
-                    ),
-                    decoration: BoxDecoration(
-                      color: atmo.userBubbleFill,
-                      borderRadius: const BorderRadius.only(
-                        topLeft: Radius.circular(20),
-                        topRight: Radius.circular(20),
-                        bottomLeft: Radius.circular(20),
-                        bottomRight: Radius.circular(6),
-                      ),
-                      border: Border.all(
-                        color: atmo.userBubbleBorder,
-                        width: 0.8,
-                      ),
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (session.connection case final connection?)
-                          for (final file
-                              in (entry['files'] as List? ?? [])
-                                  .whereType<Json>())
-                            if (file['content_type'] == 'image/jpeg' &&
-                                file['id'] is String)
-                              Padding(
-                                padding: EdgeInsets.only(
-                                  bottom: text.trim().isNotEmpty ? 8 : 0,
-                                ),
-                                child: ClipRRect(
-                                  borderRadius: BorderRadius.circular(14),
-                                  child: _ChatImage(
-                                    key: ValueKey((connection, file['id'])),
-                                    connection: connection,
-                                    api: session.api,
-                                    id: file['id'],
-                                  ),
+              Semantics(
+                label: user ? '你' : 'Wintermute',
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 15,
+                    vertical: 10,
+                  ),
+                  decoration: BoxDecoration(
+                    color: user
+                        ? atmo.userBubbleFill
+                        : atmo.assistantBubbleFill,
+                    borderRadius: BorderRadius.circular(18),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (session.connection case final connection? when user)
+                        for (final file
+                            in (entry['files'] as List? ?? [])
+                                .whereType<Json>())
+                          if (file['content_type'] == 'image/jpeg' &&
+                              file['id'] is String)
+                            Padding(
+                              padding: EdgeInsets.only(
+                                bottom: text.trim().isNotEmpty ? 8 : 0,
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: _ChatImage(
+                                  key: ValueKey((connection, file['id'])),
+                                  connection: connection,
+                                  api: session.api,
+                                  id: file['id'],
                                 ),
                               ),
-                        if (text.trim().isNotEmpty) body,
-                      ],
-                    ),
-                  ),
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.fromLTRB(16, 13, 16, 13),
-                  decoration: BoxDecoration(
-                    color: atmo.assistantBubbleFill,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                      bottomRight: Radius.circular(20),
-                      bottomLeft: Radius.circular(6),
-                    ),
-                    border: Border.all(color: atmo.cardBorder, width: 0.8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: atmo.shadowColor,
-                        blurRadius: 16,
-                        offset: const Offset(0, 5),
-                      ),
+                            ),
+                      if (text.trim().isNotEmpty) body,
                     ],
                   ),
-                  child: body,
                 ),
+              ),
               if (user && status != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 5, right: 6),

@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSCameraUsageDescription</key>
+	<string>扫描管理页面上的二维码以配对此设备。</string>
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>经你允许，在使用其他应用时定时截屏并同步到已连接的 Wintermute 服务。</string>
 	<key>UIBackgroundModes</key>

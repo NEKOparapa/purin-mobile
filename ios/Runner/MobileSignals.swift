@@ -78,6 +78,8 @@ final class MobileSignals: NSObject, CLLocationManagerDelegate {
       let source = args["source"] as? String
       do {
         switch call.method {
+        case "deviceName":
+          reply(UIDevice.current.name)
         case "status":
           reply(self.status())
         case "configure":

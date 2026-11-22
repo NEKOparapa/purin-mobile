@@ -182,7 +182,7 @@ class _InboxScreenState extends State<InboxScreen> {
                     child: Column(
                       children: [
                         for (var i = 0; i < inbox.notices.length; i++) ...[
-                          _NoticeRow(
+                          NoticeRow(
                             notice: inbox.notices[i],
                             locale: locale,
                             onTap: () => open(inbox.notices[i]),
@@ -239,8 +239,9 @@ class _InboxScreenState extends State<InboxScreen> {
   }
 }
 
-class _NoticeRow extends StatelessWidget {
-  const _NoticeRow({
+class NoticeRow extends StatelessWidget {
+  const NoticeRow({
+    super.key,
     required this.notice,
     required this.locale,
     required this.onTap,

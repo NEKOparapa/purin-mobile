@@ -117,6 +117,7 @@ class MobileSession extends ChangeNotifier {
 
   Connection? connection;
   var _history = ChatHistory();
+  bool get chatHistoryLoaded => _history.loaded;
   List<Json> _serverMessages = [];
   List<Json> _outgoing = [];
   List<PendingQuestion> questions = [];

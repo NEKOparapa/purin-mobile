@@ -100,6 +100,10 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun onSignalMethod(call: MethodCall, result: MethodChannel.Result) {
+        if (call.method == "deviceName") {
+            result.success(Build.MODEL)
+            return
+        }
         if (call.method == "request" || call.method == "settings") {
             try {
                 permission(call.argument<String>("source").orEmpty(), call.method == "settings", result)
