@@ -1235,7 +1235,6 @@ class _Message extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final atmo = AppAtmosphere.of(context);
     final user = entry['role'] == 'user';
-    final notice = entry['layer'] == 'notification';
     final status = const {
       'sending': '正在发送',
       'unsent': '未确认送达',
@@ -1319,62 +1318,6 @@ class _Message extends StatelessWidget {
                         if (text.trim().isNotEmpty) body,
                       ],
                     ),
-                  ),
-                )
-              else if (notice)
-                Container(
-                  padding: const EdgeInsets.fromLTRB(14, 11, 16, 11),
-                  decoration: BoxDecoration(
-                    color: atmo.assistantBubbleFill,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(20),
-                      topRight: Radius.circular(20),
-                      bottomRight: Radius.circular(20),
-                      bottomLeft: Radius.circular(6),
-                    ),
-                    border: Border.all(color: atmo.cardBorder, width: 0.8),
-                    boxShadow: [
-                      BoxShadow(
-                        color: atmo.shadowColor,
-                        blurRadius: 14,
-                        offset: const Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Container(
-                            width: 22,
-                            height: 22,
-                            decoration: BoxDecoration(
-                              color: colors.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(7),
-                            ),
-                            child: Icon(
-                              Icons.notifications_none_rounded,
-                              size: 14,
-                              color: colors.primary,
-                            ),
-                          ),
-                          const SizedBox(width: 7),
-                          Text(
-                            '后台通知',
-                            style: TextStyle(
-                              fontSize: 12.5,
-                              fontWeight: FontWeight.w600,
-                              color: colors.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 7),
-                      body,
-                    ],
                   ),
                 )
               else
