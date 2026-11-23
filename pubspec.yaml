@@ -7,11 +7,15 @@ environment:
   sdk: ^3.12.2
 
 dependencies:
+  android_file_picker: ^2.2.1
+  file_selector_ios: ^0.5.3+6
   flutter:
     sdk: flutter
   flutter_secure_storage: ^11.2.0
+  image: ^4.13.1
   mobile_scanner: ^7.5.0
   path_provider: ^2.1.6
+  record: ^7.2.0
 
 dev_dependencies:
   flutter_test:

@@ -94,27 +94,30 @@ class _ChatMascotState extends State<ChatMascot> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        DecoratedBox(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: colors.surfaceContainerHigh,
-          ),
-          child: Image.asset(
-            'assets/mascot/$mood$suffix.webp',
-            width: side,
-            height: side,
-            gaplessPlayback: true,
-            excludeFromSemantics: true,
-          ),
+        Image.asset(
+          'assets/mascot/$mood$suffix.webp',
+          width: side,
+          height: side,
+          gaplessPlayback: true,
+          excludeFromSemantics: true,
         ),
         const SizedBox(height: 4),
-        Text(
-          'Wintermute',
-          style: TextStyle(
-            fontSize: 13,
-            height: 1.3,
-            fontWeight: FontWeight.w500,
-            color: colors.onSurfaceVariant,
+        DecoratedBox(
+          decoration: ShapeDecoration(
+            color: colors.surfaceContainer.withValues(alpha: .94),
+            shape: const StadiumBorder(),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 7),
+            child: Text(
+              'Wintermute',
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.3,
+                fontWeight: FontWeight.w500,
+                color: colors.onSurface,
+              ),
+            ),
           ),
         ),
       ],

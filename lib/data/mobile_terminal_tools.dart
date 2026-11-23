@@ -5,19 +5,6 @@ import 'package:flutter/services.dart';
 import 'agent_api.dart';
 import 'mobile_connectors.dart';
 
-class AndroidDeviceStatus {
-  bool get supported => Platform.isAndroid;
-
-  Future<Json> read() async {
-    const channel = MethodChannel('dev.wintermute/mobile_signals');
-    final status = await channel.invokeMapMethod<String, dynamic>(
-      'deviceStatus',
-    );
-    if (status == null) throw StateError('无法读取设备状态');
-    return status;
-  }
-}
-
 bool secureToolConnection(Connection connection) {
   final uri = Uri.parse(connection.url);
   return uri.scheme == 'https' ||
@@ -34,9 +21,7 @@ class MobileTerminalTools {
       );
 
   MobileTerminalTools._(Json saved, this.platform)
-    : enabled =
-          platform == ConnectorPlatform.android && saved['enabled'] == true,
-      selected = {
+    : selected = {
         for (final item in platform.catalog)
           if ((saved['connectors'] as List? ?? []).contains(item.id) ||
               (platform == ConnectorPlatform.android &&
@@ -44,12 +29,12 @@ class MobileTerminalTools {
                   (saved['connectors'] as List? ?? []).contains(item.key)))
             item,
       },
-      _withdraw = saved['withdraw'] == true,
+      // Withdraw capabilities advertised by older Android installs on their next sync.
+      _withdraw = saved['withdraw'] == true || saved['enabled'] == true,
       _pending = saved['pending'] as Json?;
 
   final ConnectorPlatform platform;
 
-  bool enabled;
   final Set<MobileConnector> selected;
   final Map<MobileConnector, bool> _registered = {};
   Map<String, bool> access = {};
@@ -58,17 +43,10 @@ class MobileTerminalTools {
   String? error;
   Json toJson() => {
     'platform': platform.name,
-    'enabled': enabled,
     'connectors': selected.map((item) => item.id).toList(),
     'withdraw': _withdraw,
     'pending': _pending,
   };
-
-  void setEnabled(bool value) {
-    enabled = value;
-    _withdraw = !value;
-    error = null;
-  }
 
   void disableConnector(MobileConnector item) {
     selected.remove(item);
@@ -78,7 +56,6 @@ class MobileTerminalTools {
   Future<void> poll(
     AgentApi api,
     Connection connection,
-    Future<Json> Function() read,
     MobileConnectors connectors,
     Future<void> Function() persist,
     bool Function() active,
@@ -117,12 +94,11 @@ class MobileTerminalTools {
         }
       }
       final available = {
-        if (enabled && platform == ConnectorPlatform.android) 'device_status',
         for (final item in platform.catalog)
           if (selected.contains(item) && access[item.key] == true)
             ...item.tools,
       };
-      if (selected.isEmpty && !enabled && !_withdraw) {
+      if (selected.isEmpty && !_withdraw) {
         error = catalogError;
         return;
       }
@@ -165,17 +141,15 @@ class MobileTerminalTools {
           body['stderr'] = '连接器未启用、未授权或设备已离开前台';
         } else if (tool is! String ||
             args is! Json ||
-            (tool == 'device_status' && args.isNotEmpty) ||
             timeout is! int ||
             timeout < 1 ||
             timeout > 120) {
           body['stderr'] = '设备调用参数无效';
         } else {
           try {
-            final operation = tool == 'device_status'
-                ? read()
-                : connectors.execute(connection.scope, tool, args, timeout);
-            final data = await operation.timeout(Duration(seconds: timeout));
+            final data = await connectors
+                .execute(connection.scope, tool, args, timeout)
+                .timeout(Duration(seconds: timeout));
             var output = jsonEncode(data);
             final rawRows = data['items'];
             final rows = rawRows is List ? rawRows.toList() : null;

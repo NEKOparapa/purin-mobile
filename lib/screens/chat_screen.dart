@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -5,24 +6,14 @@ import '../data/agent_api.dart';
 import '../data/device_inbox.dart';
 import '../data/mobile_session.dart';
 import '../widgets/app_theme.dart';
+import '../widgets/chat_bubble.dart';
+import '../widgets/chat_composer.dart';
 import '../widgets/chat_mascot.dart';
 import '../widgets/question_cards.dart';
 import '../widgets/shared.dart';
 import 'connection_screen.dart';
-import 'inbox_screen.dart';
-import 'memory_screen.dart';
+import '../widgets/schedule_notice.dart';
 import 'schedule_screen.dart';
-
-enum _HomeTab {
-  chat('对话', Icons.chat_bubble_outline_rounded, Icons.chat_bubble_rounded),
-  schedule('日程', Icons.calendar_month_outlined, Icons.calendar_month_rounded),
-  memory('记忆', Icons.auto_awesome_outlined, Icons.auto_awesome_rounded),
-  inbox('通知', Icons.notifications_none_rounded, Icons.notifications_rounded);
-
-  const _HomeTab(this.label, this.icon, this.activeIcon);
-  final String label;
-  final IconData icon, activeIcon;
-}
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key, required this.session});
@@ -32,16 +23,14 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final _scaffoldKey = GlobalKey<ScaffoldState>();
+  PageRoute<void>? _scheduleRoute;
+  final _openedNotice = ValueNotifier<({String scope, DeviceNotice notice})?>(
+    null,
+  );
   final _input = TextEditingController();
-  final _searchInput = TextEditingController();
   final _focus = FocusNode();
-  final _searchFocus = FocusNode();
   final _scroll = ScrollController();
 
-  _HomeTab _tab = _HomeTab.chat;
-  bool _searching = false;
-  String _searchQuery = '';
   int _lastCount = 0;
   String? _scope;
 
@@ -49,93 +38,173 @@ class _ChatScreenState extends State<ChatScreen> {
   void initState() {
     super.initState();
     _focus.addListener(_updateFocus);
-    widget.session.inbox.onOpen = (_, id) => _inbox(id);
-    widget.session.inbox.onArrival = _arrival;
+    widget.session.inbox.onOpen = _openNotice;
   }
 
-  void _arrival(DeviceNotice notice) {
-    if (!mounted) return;
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(
-      SnackBar(
-        content: Text(notice.title),
-        action: SnackBarAction(label: '查看', onPressed: () => _inbox(notice.id)),
-      ),
-    );
-  }
+  int _openRequest = 0;
 
-  void _inbox([String? id]) {
-    if (!mounted) return;
-    if (id != null) {
-      _open('通知', InboxScreen(inbox: widget.session.inbox, initialNotice: id));
-    } else if (widget.session.inbox.supported) {
-      _selectTab(_HomeTab.inbox);
-    } else {
-      _open('通知', InboxScreen(inbox: widget.session.inbox));
+  Future<void> _openNotice(String scope, String id) async {
+    final inbox = widget.session.inbox;
+    if (!mounted || scope != inbox.connection?.scope) return;
+    final nav = Navigator.of(context);
+    final existing = _scheduleRoute;
+    nav.popUntil((route) => route == existing || route.isFirst);
+    _openSchedule();
+    final route = _scheduleRoute!;
+    final request = ++_openRequest;
+    final notice = await inbox.findNotice(id);
+    await WidgetsBinding.instance.endOfFrame;
+    if (!mounted ||
+        notice == null ||
+        request != _openRequest ||
+        route != _scheduleRoute ||
+        !route.isCurrent ||
+        scope != inbox.connection?.scope) {
+      return;
+    }
+    _openedNotice.value = (scope: scope, notice: notice);
+    final pageContext = route.subtreeContext;
+    if (pageContext != null && pageContext.mounted) {
+      await showScheduleNotice(pageContext, inbox, notice);
     }
   }
 
   void _updateFocus() => setState(() {});
 
-  String _pageNameFor(_HomeTab tab) =>
-      tab == _HomeTab.chat ? 'Agent 对话' : tab.label;
-
-  void _openDrawer() {
+  void _openSchedule() {
+    if (_scheduleRoute?.isCurrent ?? false) return;
     FocusManager.instance.primaryFocus?.unfocus();
-    _scaffoldKey.currentState?.openDrawer();
-  }
-
-  void _selectTab(_HomeTab tab) {
-    if (_tab == tab) return;
-    FocusManager.instance.primaryFocus?.unfocus();
-    setState(() {
-      _tab = tab;
-      if (tab != _HomeTab.chat && _searching) {
-        _searching = false;
-        _searchQuery = '';
-        _searchInput.clear();
-      }
-    });
-    widget.session.page(_pageNameFor(tab));
-    if (tab == _HomeTab.inbox) {
-      widget.session.inbox.refresh();
-    }
-  }
-
-  Future<void> _open(String name, Widget page) async {
-    FocusManager.instance.primaryFocus?.unfocus();
-    widget.session.page(name);
-    await Navigator.of(context).push(appleRoute<void>(page));
-    if (mounted) widget.session.page(_pageNameFor(_tab));
-  }
-
-  void _settings() => _open('连接与采集', ConnectionScreen(session: widget.session));
-
-  void _toggleSearch() {
-    setState(() {
-      _searching = !_searching;
-      if (!_searching) {
-        _searchQuery = '';
-        _searchInput.clear();
-        _searchFocus.unfocus();
-      } else {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _searchFocus.requestFocus();
-        });
-      }
+    _openedNotice.value = null;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final PageRoute<void> route =
+        Theme.of(context).platform == TargetPlatform.iOS
+        ? CupertinoPageRoute<void>(builder: _schedulePage)
+        : PageRouteBuilder<void>(
+            transitionDuration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 210),
+            reverseTransitionDuration: reduceMotion
+                ? Duration.zero
+                : const Duration(milliseconds: 170),
+            pageBuilder: (context, _, _) => _schedulePage(context),
+            transitionsBuilder: (context, animation, _, child) =>
+                SlideTransition(
+                  position: animation.drive(
+                    Tween(
+                      begin: const Offset(0, .13),
+                      end: Offset.zero,
+                    ).chain(CurveTween(curve: Curves.easeOutCubic)),
+                  ),
+                  child: FadeTransition(opacity: animation, child: child),
+                ),
+          );
+    _scheduleRoute = route;
+    widget.session.page('日程');
+    Navigator.of(context).push(route).then((_) {
+      if (!mounted || _scheduleRoute != route) return;
+      _scheduleRoute = null;
+      _openRequest++;
+      widget.session.page('Agent 对话');
     });
   }
 
-  void _send() {
-    final text = _input.text.trim();
-    if (text.isEmpty) return;
-    if (widget.session.connection == null) {
-      _settings();
+  Widget _schedulePage(BuildContext context) {
+    final session = widget.session;
+    final safeTop = MediaQuery.paddingOf(context).top;
+    final toolbarHeight =
+        kToolbarHeight +
+        (MediaQuery.textScalerOf(context).scale(14) - 14).clamp(
+          0,
+          double.infinity,
+        );
+    return AtmosphereBackground(
+      child: Scaffold(
+        backgroundColor: Colors.transparent,
+        body: SafeArea(
+          top: false,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 720),
+                  child: ListenableBuilder(
+                    listenable: session,
+                    builder: (context, _) => ValueListenableBuilder(
+                      valueListenable: _openedNotice,
+                      builder: (context, notice, _) => ScheduleScreen(
+                        key: ObjectKey(session.connection),
+                        api: session.api,
+                        connection: session.connection,
+                        inbox: session.inbox,
+                        onSettings: _settings,
+                        topInset:
+                            safeTop + toolbarHeight + FadingPageHeader.feather,
+                        openedNotice: notice?.scope == session.connection?.scope
+                            ? notice?.notice
+                            : null,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 0,
+                left: 0,
+                right: 0,
+                child: FadingPageHeader(
+                  child: Padding(
+                    padding: EdgeInsets.fromLTRB(8, safeTop, 8, 0),
+                    child: SizedBox(
+                      height: toolbarHeight,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          TextButton.icon(
+                            onPressed: () => Navigator.pop(context),
+                            icon: const Icon(Icons.chevron_left_rounded),
+                            label: const Text('对话'),
+                          ),
+                          _settingsButton(),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _settings() async {
+    if (ModalRoute.isCurrentOf(context) != true &&
+        _scheduleRoute?.isCurrent != true) {
       return;
     }
-    widget.session.send(text);
-    _input.clear();
+    FocusManager.instance.primaryFocus?.unfocus();
+    widget.session.page('连接与采集');
+    final page = ConnectionScreen(session: widget.session);
+    await Navigator.of(context).push(appleRoute<void>(page));
+    if (!mounted) return;
+    if (_scheduleRoute?.isCurrent ?? false) {
+      widget.session.page('日程');
+    } else if (ModalRoute.isCurrentOf(context) ?? false) {
+      widget.session.page('Agent 对话');
+    }
+  }
+
+  Widget _settingsButton() => IconButton(
+    tooltip: '设置',
+    icon: const Icon(Icons.settings_outlined),
+    iconSize: 22,
+    constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+    onPressed: _settings,
+  );
+
+  void _scrollAfterSend() {
     if (_scroll.hasClients) {
       _scroll.animateTo(
         _scroll.position.maxScrollExtent + 120,
@@ -148,11 +217,9 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   void dispose() {
     widget.session.inbox.onOpen = null;
-    widget.session.inbox.onArrival = null;
+    _openedNotice.dispose();
     _input.dispose();
-    _searchInput.dispose();
     _focus.dispose();
-    _searchFocus.dispose();
     _scroll.dispose();
     super.dispose();
   }
@@ -165,12 +232,13 @@ class _ChatScreenState extends State<ChatScreen> {
     final availableHeight =
         media.size.height - media.viewInsets.bottom - media.padding.vertical;
     final compact = keyboard || availableHeight < 480;
-    final android = Theme.of(context).platform == TargetPlatform.android;
-    final tabs = [
-      _HomeTab.chat,
-      if (android) _HomeTab.schedule else _HomeTab.memory,
-      if (session.inbox.supported) _HomeTab.inbox,
-    ];
+    final showHeader = !keyboard || availableHeight >= 200;
+    final toolbarHeight =
+        (compact ? 38 : 54) + media.textScaler.scale(13) * 1.3;
+    final topInset =
+        media.padding.top +
+        (showHeader ? toolbarHeight + (compact ? 2 : 14) : 0);
+    final chatVisible = ModalRoute.isCurrentOf(context) ?? true;
     return AtmosphereBackground(
       child: ListenableBuilder(
         listenable: session,
@@ -184,7 +252,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 _scroll.position.extentAfter < 90;
             _scope = scope;
             _lastCount = messages.length;
-            if (follow && _tab == _HomeTab.chat && _searchQuery.isEmpty) {
+            if (follow && chatVisible) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted && _scroll.hasClients) {
                   _scroll.jumpTo(_scroll.position.maxScrollExtent);
@@ -193,91 +261,40 @@ class _ChatScreenState extends State<ChatScreen> {
             }
           }
 
-          final filteredMessages = _searchQuery.isEmpty
-              ? messages
-              : messages
-                    .where(
-                      (m) => (m['text'] as String? ?? '')
-                          .toLowerCase()
-                          .contains(_searchQuery.toLowerCase()),
-                    )
-                    .toList();
-
           return Scaffold(
-            key: _scaffoldKey,
             backgroundColor: Colors.transparent,
-            drawerEdgeDragWidth: 44,
-            drawerScrimColor: Colors.black.withValues(alpha: .22),
-            onDrawerChanged: (opened) {
-              if (opened) FocusManager.instance.primaryFocus?.unfocus();
-            },
-            drawer: _SidebarDrawer(
-              tab: _tab,
-              inbox: session.inbox,
-              tabs: tabs,
-              onSelectTab: (tab) {
-                Navigator.of(context).pop();
-                _selectTab(tab);
-              },
-              onSettings: () {
-                Navigator.of(context).pop();
-                _settings();
-              },
-            ),
             body: SafeArea(
-              child: Column(
+              top: false,
+              child: Stack(
+                fit: StackFit.expand,
                 children: [
-                  if (!keyboard || availableHeight >= 200)
-                    _header(session, messages, compact),
-                  Expanded(
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 720),
-                        child: IndexedStack(
-                          index: tabs.indexOf(_tab),
-                          children: [
-                            _chatPane(
-                              session,
-                              filteredMessages,
-                              empty: messages.isEmpty,
-                              keyboard: keyboard,
-                            ),
-                            if (_tab == _HomeTab.schedule)
-                              ScheduleScreen(
-                                key: ObjectKey(session.connection),
-                                api: session.api,
-                                connection: session.connection,
-                                inbox: session.inbox,
-                                onSettings: _settings,
-                                onInbox: () => _selectTab(_HomeTab.inbox),
-                                onNotice: (notice) => _open(
-                                  '通知',
-                                  NoticeDetail(
-                                    inbox: session.inbox,
-                                    notice: notice,
-                                  ),
-                                ),
-                              )
-                            else if (android)
-                              const SizedBox.shrink()
-                            else
-                              const MemoryScreen(
-                                embedded: true,
-                                topInset: 8,
-                                bottomInset: 16,
-                              ),
-                            if (session.inbox.supported)
-                              InboxScreen(
-                                inbox: session.inbox,
-                                embedded: true,
-                                topInset: 8,
-                                bottomInset: 16,
-                              ),
-                          ],
-                        ),
+                  Center(
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 720),
+                      child: _chatPane(
+                        session,
+                        keyboard: keyboard,
+                        topInset: topInset,
                       ),
                     ),
                   ),
+                  if (showHeader)
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: FadingPageHeader(
+                        child: Padding(
+                          padding: EdgeInsets.only(top: media.padding.top),
+                          child: _header(
+                            session,
+                            messages,
+                            compact,
+                            toolbarHeight,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -287,9 +304,13 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _header(MobileSession session, List<Json> messages, bool compact) {
+  Widget _header(
+    MobileSession session,
+    List<Json> messages,
+    bool compact,
+    double toolbarHeight,
+  ) {
     final scope = session.connection?.scope;
-    final showInboxTab = session.inbox.supported;
     final last = messages.lastOrNull;
     final thinking =
         last?['role'] == 'user' &&
@@ -299,93 +320,49 @@ class _ChatScreenState extends State<ChatScreen> {
         .firstOrNull;
     return Padding(
       padding: EdgeInsets.fromLTRB(8, compact ? 0 : 6, 8, compact ? 2 : 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          ListenableBuilder(
+      child: SizedBox(
+        height: toolbarHeight,
+        child: NavigationToolbar(
+          middleSpacing: 0,
+          leading: ListenableBuilder(
             listenable: session.inbox,
-            builder: (_, _) => GlassIconButton(
-              icon: Icons.menu_rounded,
-              tooltip: '导航菜单',
-              badge: showInboxTab && session.inbox.unread > 0,
-              onPressed: _openDrawer,
+            builder: (_, _) => _CalendarEntry(
+              unread: session.inbox.hasUnread,
+              onPressed: _openSchedule,
             ),
           ),
-          Expanded(
-            child: Center(
-              child: _tab == _HomeTab.chat
-                  ? ChatMascot(
-                      key: ValueKey(scope),
-                      input: _input,
-                      focus: _focus,
-                      thinking: thinking,
-                      replyId: reply?['id'] as String?,
-                      historyLoaded: session.chatHistoryLoaded,
-                      compact: compact,
-                    )
-                  : Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      child: Text(
-                        _pageNameFor(_tab),
-                        style: const TextStyle(
-                          fontWeight: FontWeight.w600,
-                          fontSize: 18,
-                        ),
-                      ),
-                    ),
+          middle: FittedBox(
+            fit: BoxFit.scaleDown,
+            child: ChatMascot(
+              key: ValueKey(scope),
+              input: _input,
+              focus: _focus,
+              thinking: thinking,
+              replyId: reply?['id'] as String?,
+              historyLoaded: session.chatHistoryLoaded,
+              compact: compact,
             ),
           ),
-          SizedBox(
-            width: 48,
-            child: _tab == _HomeTab.inbox
-                ? GlassIconButton(
-                    icon: Icons.refresh_rounded,
-                    tooltip: '刷新通知',
-                    onPressed: session.inbox.refresh,
-                  )
-                : _tab == _HomeTab.chat && (messages.isNotEmpty || _searching)
-                ? GlassIconButton(
-                    icon: _searching
-                        ? Icons.close_rounded
-                        : Icons.search_rounded,
-                    tooltip: _searching ? '关闭搜索' : '搜索对话',
-                    active: _searching,
-                    onPressed: _toggleSearch,
-                  )
-                : null,
-          ),
-        ],
+          trailing: _settingsButton(),
+        ),
       ),
     );
   }
 
   Widget _chatPane(
-    MobileSession session,
-    List<Json> filteredMessages, {
-    required bool empty,
+    MobileSession session, {
     required bool keyboard,
+    required double topInset,
   }) {
     final connected = session.connection != null;
+    final messages = session.messages;
     final welcome =
-        empty && (!connected || session.questions.isEmpty) && !_searching;
+        messages.isEmpty && (!connected || session.questions.isEmpty);
+    final scrollUnderHeader = messages.isNotEmpty && session.error == null;
     return Column(
       children: [
-        if (_searching)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
-            child: _FloatingSearchBar(
-              controller: _searchInput,
-              focusNode: _searchFocus,
-              query: _searchQuery,
-              matchCount: filteredMessages.length,
-              onChanged: (v) => setState(() => _searchQuery = v.trim()),
-              onClear: () {
-                _searchInput.clear();
-                setState(() => _searchQuery = '');
-              },
-            ),
-          ),
-        if (session.error != null && (!_searching || !keyboard))
+        if (!scrollUnderHeader) SizedBox(height: topInset),
+        if (session.error != null)
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 2, 16, 6),
             child: _FloatingErrorPill(
@@ -397,10 +374,11 @@ class _ChatScreenState extends State<ChatScreen> {
           child: LayoutBuilder(
             builder: (context, bounds) => _chatContent(
               session,
-              filteredMessages,
+              messages,
               welcome: welcome,
               keyboard: keyboard,
               bounds: bounds,
+              listTopInset: scrollUnderHeader ? topInset : 0,
             ),
           ),
         ),
@@ -410,10 +388,11 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _chatContent(
     MobileSession session,
-    List<Json> filteredMessages, {
+    List<Json> messages, {
     required bool welcome,
     required bool keyboard,
     required BoxConstraints bounds,
+    required double listTopInset,
   }) {
     final connected = session.connection != null;
     final showTopics = welcome && !keyboard && bounds.maxHeight > 300;
@@ -428,14 +407,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   child: _Greeting(),
                 )
               : _buildChatBody(
-                  context,
                   session: session,
-                  messages: filteredMessages,
+                  messages: messages,
+                  topInset: listTopInset,
                 ),
         ),
-        if (session.questions.isNotEmpty &&
-            connected &&
-            (!_searching || !keyboard))
+        if (session.questions.isNotEmpty && connected)
           ConstrainedBox(
             constraints: BoxConstraints(maxHeight: bounds.maxHeight * .38),
             child: SingleChildScrollView(
@@ -446,20 +423,21 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
             ),
           ),
-        if (!_searching || !keyboard)
-          Padding(
-            key: const ValueKey('composer'),
-            padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-            child: _Composer(
-              input: _input,
-              focusNode: _focus,
-              connected: connected,
-              ready: session.ready,
-              compact: bounds.maxHeight < 280 || keyboard,
-              onSettings: _settings,
-              onSend: _send,
-            ),
+        Padding(
+          key: const ValueKey('composer'),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+          child: ChatComposer(
+            input: _input,
+            focusNode: _focus,
+            session: session,
+            connection: session.connection,
+            maxLines: bounds.maxHeight < 280 ? 2 : 4,
+            showConnect: !connected && !keyboard && bounds.maxHeight >= 280,
+            active: ModalRoute.isCurrentOf(context) ?? true,
+            onSettings: _settings,
+            onSent: _scrollAfterSend,
           ),
+        ),
         if (showTopics) ...[
           Wrap(
             alignment: WrapAlignment.center,
@@ -491,34 +469,20 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildChatBody(
-    BuildContext context, {
+  Widget _buildChatBody({
     required MobileSession session,
     required List<Json> messages,
+    required double topInset,
   }) {
-    if (messages.isEmpty && _searchQuery.isNotEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: GlassCard(
-            radius: 22,
-            padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 16),
-            child: Text(
-              '没有包含「$_searchQuery」的对话',
-              style: TextStyle(
-                fontSize: 14.5,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-        ),
-      );
-    }
-
     return LayoutBuilder(
       builder: (context, layout) => ListView.builder(
         controller: _scroll,
-        padding: const EdgeInsets.fromLTRB(16, 8, 16, 10),
+        padding: EdgeInsets.fromLTRB(
+          16,
+          topInset + FadingPageHeader.feather,
+          16,
+          10,
+        ),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
         itemCount: messages.length,
         itemBuilder: (context, index) {
@@ -612,228 +576,112 @@ class _TimestampDivider extends StatelessWidget {
   }
 }
 
-class _SidebarDrawer extends StatelessWidget {
-  const _SidebarDrawer({
-    required this.tab,
-    required this.inbox,
-    required this.tabs,
-    required this.onSelectTab,
-    required this.onSettings,
-  });
-  final _HomeTab tab;
-  final DeviceInbox inbox;
-  final List<_HomeTab> tabs;
-  final ValueChanged<_HomeTab> onSelectTab;
-  final VoidCallback onSettings;
-
+class _CalendarEntry extends StatefulWidget {
+  const _CalendarEntry({required this.unread, required this.onPressed});
+  final bool unread;
+  final VoidCallback onPressed;
   @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return Drawer(
-      width: (MediaQuery.sizeOf(context).width * .76).clamp(0, 268).toDouble(),
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      semanticLabel: '导航菜单',
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(8, 6, 0, 6),
-          child: Material(
-            color: colors.surfaceContainer,
-            clipBehavior: Clip.antiAlias,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(18),
-              side: BorderSide(color: colors.outlineVariant),
-            ),
-            child: Column(
-              children: [
-                Expanded(
-                  child: ListenableBuilder(
-                    listenable: inbox,
-                    builder: (_, _) => ListView.separated(
-                      padding: const EdgeInsets.all(10),
-                      itemCount: tabs.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 4),
-                      itemBuilder: (_, index) {
-                        final item = tabs[index];
-                        return _DrawerNavItem(
-                          label: item.label,
-                          icon: item.icon,
-                          activeIcon: item.activeIcon,
-                          selected: tab == item,
-                          badgeCount: item == _HomeTab.inbox ? inbox.unread : 0,
-                          onTap: () => onSelectTab(item),
-                        );
-                      },
-                    ),
-                  ),
-                ),
-                Divider(
-                  indent: 14,
-                  endIndent: 14,
-                  height: 1,
-                  color: colors.outlineVariant,
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(10),
-                  child: _DrawerNavItem(
-                    label: '设置',
-                    icon: Icons.settings_outlined,
-                    activeIcon: Icons.settings_outlined,
-                    selected: false,
-                    onTap: onSettings,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
+  State<_CalendarEntry> createState() => _CalendarEntryState();
 }
 
-class _DrawerNavItem extends StatelessWidget {
-  const _DrawerNavItem({
-    required this.label,
-    required this.icon,
-    required this.activeIcon,
-    required this.selected,
-    required this.onTap,
-    this.badgeCount = 0,
-  });
+class _CalendarEntryState extends State<_CalendarEntry>
+    with WidgetsBindingObserver {
+  int _day = DateTime.now().day;
+  Timer? _timer;
 
-  final String label;
-  final IconData icon;
-  final IconData activeIcon;
-  final bool selected;
-  final VoidCallback onTap;
-  final int badgeCount;
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _refreshDay();
+  }
+
+  void _refreshDay() {
+    final now = DateTime.now();
+    if (_day != now.day) setState(() => _day = now.day);
+    _timer?.cancel();
+    _timer = Timer(
+      DateTime(now.year, now.month, now.day + 1).difference(now),
+      _refreshDay,
+    );
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _refreshDay();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _timer?.cancel();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final atmo = AppAtmosphere.of(context);
-    return Material(
-      color: selected ? atmo.activeTabPill : Colors.transparent,
-      borderRadius: BorderRadius.circular(11),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(11),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12.5),
-          child: Row(
-            children: [
-              Icon(
-                selected ? activeIcon : icon,
-                size: 20,
-                color: selected ? colors.onSurface : colors.onSurfaceVariant,
-              ),
-              const SizedBox(width: 13),
-              Expanded(
-                child: Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 15.5,
-                    letterSpacing: -0.2,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                    color: selected
-                        ? colors.onSurface
-                        : colors.onSurface.withValues(alpha: 0.85),
-                  ),
-                ),
-              ),
-              if (badgeCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 7.5,
-                    vertical: 2,
-                  ),
+    return Align(
+      alignment: Alignment.centerLeft,
+      widthFactor: 1,
+      child: TextButton(
+        onPressed: widget.onPressed,
+        style: TextButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 6),
+          foregroundColor: colors.onSurface,
+          minimumSize: const Size(48, 48),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ExcludeSemantics(
+              child: Transform.rotate(
+                angle: -.07,
+                child: Container(
+                  width: 25,
+                  height: 26,
+                  clipBehavior: Clip.antiAlias,
                   decoration: BoxDecoration(
-                    color: colors.primary.withValues(alpha: 0.14),
-                    borderRadius: BorderRadius.circular(10),
+                    color: colors.surfaceContainerLowest,
+                    border: Border.all(color: colors.outlineVariant),
+                    borderRadius: BorderRadius.circular(5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: colors.outlineVariant,
+                        offset: const Offset(1, 1),
+                      ),
+                    ],
                   ),
-                  child: Text(
-                    badgeCount > 99 ? '99+' : '$badgeCount',
-                    style: TextStyle(
-                      fontSize: 11.5,
-                      fontWeight: FontWeight.w600,
-                      color: colors.primary,
-                    ),
+                  child: Column(
+                    children: [
+                      Container(height: 4, color: colors.primary),
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(
+                            '$_day',
+                            style: TextStyle(
+                              fontFamily: 'serif',
+                              fontSize: 15,
+                              height: 1.1,
+                              color: colors.onSurface,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
+              ),
+            ),
+            const SizedBox(width: 7),
+            Text('日程', semanticsLabel: widget.unread ? '日程，有未读通知' : '日程'),
+            if (widget.unread) ...[
+              const SizedBox(width: 4),
+              ExcludeSemantics(child: Badge(backgroundColor: colors.primary)),
             ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _FloatingSearchBar extends StatelessWidget {
-  const _FloatingSearchBar({
-    required this.controller,
-    required this.focusNode,
-    required this.query,
-    required this.matchCount,
-    required this.onChanged,
-    required this.onClear,
-  });
-
-  final TextEditingController controller;
-  final FocusNode focusNode;
-  final String query;
-  final int matchCount;
-  final ValueChanged<String> onChanged;
-  final VoidCallback onClear;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final atmo = AppAtmosphere.of(context);
-    return GlassCard(
-      radius: 22,
-      color: atmo.dockFill,
-      borderColor: atmo.dockBorder,
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: Row(
-        children: [
-          const SizedBox(width: 10),
-          Icon(Icons.search_rounded, size: 19, color: colors.onSurfaceVariant),
-          const SizedBox(width: 8),
-          Expanded(
-            child: TextField(
-              controller: controller,
-              focusNode: focusNode,
-              onChanged: onChanged,
-              style: TextStyle(fontSize: 14.5, color: colors.onSurface),
-              decoration: const InputDecoration(
-                filled: false,
-                isDense: true,
-                hintText: '搜索对话内容…',
-                border: InputBorder.none,
-                enabledBorder: InputBorder.none,
-                focusedBorder: InputBorder.none,
-                contentPadding: EdgeInsets.symmetric(vertical: 12),
-              ),
-            ),
-          ),
-          if (query.isNotEmpty) ...[
-            Text(
-              '$matchCount 条',
-              style: TextStyle(fontSize: 12, color: colors.onSurfaceVariant),
-            ),
-            IconButton(
-              tooltip: '清除',
-              visualDensity: VisualDensity.compact,
-              onPressed: onClear,
-              icon: Icon(
-                Icons.close_rounded,
-                size: 17,
-                color: colors.onSurfaceVariant,
-              ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
@@ -874,97 +722,6 @@ class _FloatingErrorPill extends StatelessWidget {
               ),
               child: const Text('重试'),
             ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Composer extends StatelessWidget {
-  const _Composer({
-    required this.input,
-    required this.focusNode,
-    required this.connected,
-    required this.ready,
-    required this.compact,
-    required this.onSettings,
-    required this.onSend,
-  });
-  final TextEditingController input;
-  final FocusNode focusNode;
-  final bool connected, ready, compact;
-  final VoidCallback onSettings, onSend;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final field = TextField(
-      controller: input,
-      focusNode: focusNode,
-      minLines: 1,
-      maxLines: compact ? 2 : 4,
-      maxLength: 2000,
-      textInputAction: TextInputAction.newline,
-      style: TextStyle(fontSize: 16, height: 1.45, color: colors.onSurface),
-      decoration: const InputDecoration(
-        hintText: '想说点什么？',
-        counterText: '',
-        filled: false,
-        isDense: true,
-        contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 9),
-        border: InputBorder.none,
-        focusedBorder: InputBorder.none,
-        enabledBorder: InputBorder.none,
-      ),
-    );
-    final send = ValueListenableBuilder(
-      valueListenable: input,
-      builder: (context, value, _) {
-        return IconButton.filled(
-          tooltip: '发送消息',
-          onPressed: ready && value.text.trim().isNotEmpty ? onSend : null,
-          style: IconButton.styleFrom(
-            backgroundColor: colors.primary,
-            foregroundColor: colors.onPrimary,
-            disabledBackgroundColor: colors.surfaceContainerHigh,
-            disabledForegroundColor: colors.onSurfaceVariant,
-            minimumSize: const Size.square(36),
-            tapTargetSize: MaterialTapTargetSize.padded,
-          ),
-          icon: const Icon(Icons.arrow_upward_rounded, size: 20),
-        );
-      },
-    );
-    final pair = TextButton(onPressed: onSettings, child: const Text('去连接'));
-    return GlassCard(
-      radius: 20,
-      color: colors.surfaceContainer,
-      borderColor: focusNode.hasFocus ? colors.primary : colors.outline,
-      padding: const EdgeInsets.fromLTRB(8, 4, 6, 4),
-      child: Stack(
-        alignment: Alignment.bottomRight,
-        children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
-            child: Padding(
-              padding: EdgeInsets.only(
-                right: compact ? (!connected && ready ? 124 : 50) : 0,
-                bottom: compact ? 0 : 44,
-              ),
-              child: field,
-            ),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              if (!compact) ...[
-                if (!connected && ready) pair,
-                const Spacer(),
-              ] else if (!connected && ready)
-                pair,
-              send,
-            ],
-          ),
         ],
       ),
     );
@@ -1013,7 +770,6 @@ class _Message extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final atmo = AppAtmosphere.of(context);
     final user = entry['role'] == 'user';
     final status = const {
       'sending': '正在发送',
@@ -1052,21 +808,32 @@ class _Message extends StatelessWidget {
             children: [
               Semantics(
                 label: user ? '你' : 'Wintermute',
-                child: Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 15,
-                    vertical: 10,
-                  ),
-                  decoration: BoxDecoration(
-                    color: user
-                        ? atmo.userBubbleFill
-                        : atmo.assistantBubbleFill,
-                    borderRadius: BorderRadius.circular(18),
-                  ),
+                child: ChatBubble(
+                  fromUser: user,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      if (user) ...[
+                        for (final data
+                            in (entry['images'] as List? ?? [])
+                                .whereType<String>())
+                          if (data.startsWith('data:image/jpeg;base64,'))
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: 6),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(14),
+                                child: _OutgoingImage(
+                                  key: ValueKey(data),
+                                  url: data,
+                                ),
+                              ),
+                            ),
+                        for (final doc
+                            in (entry['documents'] as List? ?? [])
+                                .whereType<Json>())
+                          _DocumentName(name: doc['name'] as String),
+                      ],
                       if (session.connection case final connection? when user)
                         for (final file
                             in (entry['files'] as List? ?? [])
@@ -1086,7 +853,9 @@ class _Message extends StatelessWidget {
                                   id: file['id'],
                                 ),
                               ),
-                            ),
+                            )
+                          else if (file['name'] is String)
+                            _DocumentName(name: file['name']),
                       if (text.trim().isNotEmpty) body,
                     ],
                   ),
@@ -1129,6 +898,45 @@ class _Message extends StatelessWidget {
       ),
     );
   }
+}
+
+class _OutgoingImage extends StatefulWidget {
+  const _OutgoingImage({super.key, required this.url});
+  final String url;
+
+  @override
+  State<_OutgoingImage> createState() => _OutgoingImageState();
+}
+
+class _OutgoingImageState extends State<_OutgoingImage> {
+  late final bytes = UriData.parse(widget.url).contentAsBytes();
+
+  @override
+  Widget build(BuildContext context) => Image.memory(
+    bytes,
+    cacheWidth: 512,
+    fit: BoxFit.contain,
+    errorBuilder: (_, _, _) => const Icon(Icons.broken_image_outlined),
+  );
+}
+
+class _DocumentName extends StatelessWidget {
+  const _DocumentName({required this.name});
+  final String name;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 3),
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(Icons.attach_file_rounded, size: 16),
+        const SizedBox(width: 4),
+        Flexible(
+          child: Text(name, maxLines: 2, overflow: TextOverflow.ellipsis),
+        ),
+      ],
+    ),
+  );
 }
 
 class _ChatImage extends StatefulWidget {

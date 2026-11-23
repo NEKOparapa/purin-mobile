@@ -15,6 +15,44 @@ class AtmosphereBackground extends StatelessWidget {
   }
 }
 
+/// Paint the header wash above scrolling content, leaving controls fully opaque.
+class FadingPageHeader extends StatelessWidget {
+  const FadingPageHeader({super.key, required this.child});
+  final Widget child;
+  static const feather = 14.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Positioned.fill(
+          bottom: -feather,
+          child: IgnorePointer(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    colors.surface.withValues(alpha: .52),
+                    colors.surface.withValues(alpha: .24),
+                    colors.surface.withValues(alpha: .07),
+                    colors.surface.withValues(alpha: 0),
+                  ],
+                  stops: const [0, .35, .70, 1],
+                ),
+              ),
+            ),
+          ),
+        ),
+        child,
+      ],
+    );
+  }
+}
+
 /// Standard secondary page with the same canvas as the chat.
 class AtmosphereScaffold extends StatelessWidget {
   const AtmosphereScaffold({
@@ -111,48 +149,6 @@ class GlassCard extends StatelessWidget {
         ],
       ),
       child: inner,
-    );
-  }
-}
-
-/// Quiet navigation button with an optional unread indicator.
-class GlassIconButton extends StatelessWidget {
-  const GlassIconButton({
-    super.key,
-    required this.icon,
-    required this.onPressed,
-    this.tooltip,
-    this.size = 48,
-    this.iconSize = 20,
-    this.badge = false,
-    this.active = false,
-  });
-
-  final IconData icon;
-  final VoidCallback? onPressed;
-  final String? tooltip;
-  final double size;
-  final double iconSize;
-  final bool badge;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    return IconButton(
-      tooltip: tooltip,
-      onPressed: onPressed,
-      constraints: BoxConstraints(minWidth: size, minHeight: size),
-      style: IconButton.styleFrom(
-        backgroundColor: active ? colors.primaryContainer : Colors.transparent,
-        foregroundColor: active ? colors.primary : colors.onSurfaceVariant,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      ),
-      icon: Badge(
-        isLabelVisible: badge,
-        backgroundColor: colors.primary,
-        child: Icon(icon, size: iconSize),
-      ),
     );
   }
 }

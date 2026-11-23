@@ -36,7 +36,7 @@ internal object DeviceNotices {
                 NotificationChannel(
                     USER_CHANNEL,
                     "Agent 消息提醒",
-                    NotificationManager.IMPORTANCE_DEFAULT,
+                    NotificationManager.IMPORTANCE_HIGH,
                 )
             )
             if (
@@ -79,15 +79,15 @@ internal object DeviceNotices {
         context: Context,
         scope: String,
         id: String,
-        title: String?,
+        title: String,
         body: String?,
+        inApp: Boolean = false,
     ): Boolean {
         val key = tag(scope, id)
         val prefs = context.getSharedPreferences("notice_receipts", Context.MODE_PRIVATE)
-        if (prefs.contains(key))
-            return title != null // already displayed; background may acknowledge
-        if (title != null) {
-            if (foreground || !enabled(context)) return false
+        if (prefs.contains(key)) return true
+        if (foreground != inApp) return false
+        if (enabled(context)) {
             val launch =
                 Intent(context, MainActivity::class.java)
                     .setAction(OPEN)
@@ -108,12 +108,13 @@ internal object DeviceNotices {
                     .setContentTitle(title)
                     .setContentText(body)
                     .setStyle(NotificationCompat.BigTextStyle().bigText(body))
+                    .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setOnlyAlertOnce(true)
                     .setAutoCancel(true)
                     .setContentIntent(intent)
                     .build()
             context.getSystemService(NotificationManager::class.java).notify(key, 1, notification)
-        }
+        } else if (!inApp) return false
         val edit = prefs.edit().putLong(key, System.currentTimeMillis())
         if (prefs.all.size >= 512) {
             prefs.all.entries

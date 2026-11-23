@@ -1,4 +1,5 @@
 import 'agent_api.dart';
+import 'device_inbox.dart';
 
 class ScheduleEntry {
   const ScheduleEntry(
@@ -7,12 +8,14 @@ class ScheduleEntry {
     this.content,
     this.at,
     this.action,
-    this.triggered,
-  );
+    this.triggered, [
+    this.notification,
+  ]);
 
   final String id, title, content, action;
   final DateTime at;
   final bool triggered;
+  final DeviceNotice? notification;
 
   factory ScheduleEntry.fromJson(dynamic value) {
     if (value case {
@@ -35,6 +38,9 @@ class ScheduleEntry {
           at.toLocal(),
           action,
           status == 'triggered',
+          value['notification'] == null
+              ? null
+              : DeviceNotice.fromJson(value['notification'] as Json),
         );
       }
     }
@@ -52,6 +58,7 @@ Stream<List<ScheduleEntry>> schedulePages(
     'start': start.toUtc().toIso8601String(),
     'end': end.toUtc().toIso8601String(),
     'limit': '100',
+    'include_notifications': '1',
   };
   final cursors = <String>{};
   while (true) {

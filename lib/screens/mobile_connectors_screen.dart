@@ -300,7 +300,7 @@ class _MobileConnectorsScreenState extends State<MobileConnectorsScreen> {
                   const SizedBox(height: 12),
                   Text(
                     _feedback ??
-                        session.deviceStatusError ??
+                        session.connectorError ??
                         (session.canEnableConnectors
                             ? '手机在前台时响应查询，结果会保存到当前会话。'
                             : '点开可查看用法，连接服务后即可启用。'),

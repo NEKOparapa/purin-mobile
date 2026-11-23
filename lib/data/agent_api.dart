@@ -215,7 +215,63 @@ class AgentApi {
   }
 
   Future<Json> request(Connection connection, String path, {Json? body}) =>
-      _request(connection, path, body: body);
+      _send(
+        connection.url,
+        path,
+        connection: connection,
+        body: body,
+        timeout: Duration(seconds: path == 'messages/images' ? 60 : 9),
+      );
+
+  Future<Json> uploadChatFile(
+    Connection conn,
+    String name,
+    Uint8List bytes, {
+    Future<void>? cancel,
+  }) async {
+    if (bytes.length > 32 * 1024 * 1024) {
+      throw const FormatException('单个附件不能超过 32 MiB');
+    }
+    final file = await _send(
+      conn.url,
+      'chat/files?name=${Uri.encodeQueryComponent(name)}',
+      connection: conn,
+      bytes: bytes,
+      contentType: ContentType.binary,
+      timeout: const Duration(seconds: 330),
+      cancel: cancel,
+    );
+    final id = file['id'];
+    if (id is! String ||
+        !RegExp(r'^doc_[a-f0-9]{64}$').hasMatch(id) ||
+        file['name'] != name) {
+      throw const FormatException('文件回执无效，请重试');
+    }
+    return {'id': id, 'name': name};
+  }
+
+  Future<String> transcribe(
+    Connection conn,
+    Uint8List wav, {
+    Future<void>? cancel,
+  }) async {
+    if (wav.length <= 44 || wav.length > 3840044) {
+      throw const FormatException('录音为空或超过两分钟');
+    }
+    final result = await _send(
+      conn.url,
+      'transcriptions',
+      connection: conn,
+      bytes: wav,
+      contentType: ContentType('audio', 'wav'),
+      timeout: const Duration(seconds: 200),
+      cancel: cancel,
+    );
+    final text = result['text'];
+    if (text is! String) throw const FormatException('转写结果无效');
+    if (text.trim().isEmpty) throw const FormatException('没有识别到语音，请再试一次');
+    return text.trim();
+  }
 
   Future<Json> uploadScreenshot(
     Connection connection,
@@ -233,10 +289,13 @@ class AgentApi {
       for (final key in ['app', 'package', 'start', 'activity_id'])
         if (record[key] != null) key: record[key],
     };
-    return _request(
-      connection,
+    return _send(
+      connection.url,
       'image/slices',
-      jpeg: jpeg,
+      connection: connection,
+      bytes: jpeg,
+      contentType: ContentType('image', 'jpeg'),
+      timeout: const Duration(seconds: 60),
       cancel: cancel,
       headers: {
         'X-Event-ID': record['id'] as String,
@@ -246,29 +305,14 @@ class AgentApi {
     );
   }
 
-  Future<Json> _request(
-    Connection connection,
-    String path, {
-    Json? body,
-    Uint8List? jpeg,
-    Map<String, String> headers = const {},
-    Future<void>? cancel,
-  }) => _send(
-    connection.url,
-    path,
-    connection: connection,
-    body: body,
-    jpeg: jpeg,
-    headers: headers,
-    cancel: cancel,
-  );
-
   Future<Json> _send(
     String url,
     String path, {
     Connection? connection,
     Json? body,
-    Uint8List? jpeg,
+    Uint8List? bytes,
+    ContentType? contentType,
+    Duration timeout = const Duration(seconds: 9),
     Map<String, String> headers = const {},
     Future<void>? cancel,
   }) async {
@@ -277,7 +321,7 @@ class AgentApi {
     Future<Json> perform() async {
       final uri = Uri.parse('$url/v1/$path');
       final request = await client.openUrl(
-        body == null && jpeg == null ? 'GET' : 'POST',
+        body == null && bytes == null ? 'GET' : 'POST',
         uri,
       );
       request.followRedirects = false;
@@ -289,10 +333,10 @@ class AgentApi {
         );
       }
       headers.forEach(request.headers.set);
-      if (jpeg != null) {
-        request.headers.contentType = ContentType('image', 'jpeg');
-        request.contentLength = jpeg.length;
-        request.add(jpeg);
+      if (bytes != null) {
+        request.headers.contentType = contentType;
+        request.contentLength = bytes.length;
+        request.add(bytes);
       } else if (body != null) {
         request.headers.contentType = ContentType.json;
         request.add(utf8.encode(jsonEncode(body)));
@@ -313,7 +357,7 @@ class AgentApi {
     }
 
     try {
-      return await perform().timeout(Duration(seconds: jpeg == null ? 9 : 60));
+      return await perform().timeout(timeout);
     } finally {
       client.close(force: true);
     }

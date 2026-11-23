@@ -2,6 +2,8 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>用于录制你主动输入的语音并转成可编辑的消息草稿。</string>
 	<key>NSCameraUsageDescription</key>
 	<string>扫描管理页面上的二维码以配对此设备。</string>
 	<key>NSScreenCaptureUsageDescription</key>

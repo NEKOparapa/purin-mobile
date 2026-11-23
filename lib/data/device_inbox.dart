@@ -20,7 +20,14 @@ class DeviceNotice {
     : id = row['id'] as String,
       title = row['title'] as String,
       body = row['body'] as String,
-      created = DateTime.parse(row['created_at'] as String),
+      notifyAt = DateTime.parse(
+        (row['notify_at'] ?? row['created_at']) as String,
+      ).toLocal(),
+      targetNames =
+          ((row['target_names'] ?? row['targets'] ?? const []) as List)
+              .cast<String>(),
+      status = row['status'] as String? ?? 'sent',
+      inInbox = row['in_inbox'] as bool? ?? true,
       read = row['read_at'] != null,
       expired = row['expired'] == true,
       files = (row['attachments'] as List)
@@ -28,7 +35,18 @@ class DeviceNotice {
           .map(NoticeFile.fromJson)
           .toList();
   final String id, title, body;
-  final DateTime created;
+  final DateTime notifyAt;
+  final List<String> targetNames;
+  final String status;
+  final bool inInbox;
+  String get statusLabel => expired
+      ? '已过期'
+      : switch (status) {
+          'scheduled' => '待发送',
+          'partial' => '部分发送',
+          'failed' => '发送失败',
+          _ => '已发送',
+        };
   bool read;
   final bool expired;
   final List<NoticeFile> files;
@@ -85,29 +103,40 @@ class DeviceInbox extends ChangeNotifier {
   final AgentApi api;
   Connection? connection;
   List<DeviceNotice> notices = [];
-  int unread = 0;
+  bool hasUnread = false;
   String? cursor, error;
-  bool available = true, allowed = false, loading = false;
+  bool available = true, loading = false;
+  bool? allowed;
   bool foreground = true;
-  void Function(DeviceNotice notice)? onArrival;
-  void Function(String scope, String id)? onOpen;
+  void Function(String scope, String id)? _onOpen;
+  set onOpen(void Function(String scope, String id)? handler) {
+    _onOpen = handler;
+    if (handler != null && supported && connection != null) {
+      unawaited(_takeOpen(_generation));
+    }
+  }
+
   int _generation = 0;
+  int _permissionRevision = 0;
   bool _disposed = false, _polling = false;
   int _listGeneration = 0;
+  Future<void>? _listing;
+  bool _listingMore = false;
   DateTime? _probeAt;
 
-  bool get supported => Platform.isAndroid;
+  bool get supported => Platform.isAndroid || Platform.isIOS;
 
   void connect(Connection conn) {
     connection = conn;
     _generation++;
     _listGeneration++;
     notices = [];
-    unread = 0;
+    hasUnread = false;
     cursor = null;
     error = null;
     available = true;
     loading = false;
+    _listing = null;
     _polling = false;
     _probeAt = null;
     if (!supported) return;
@@ -123,18 +152,19 @@ class DeviceInbox extends ChangeNotifier {
   bool _current(int gen) => !_disposed && gen == _generation;
 
   Future<void> refreshPermission({bool request = false}) async {
-    if (!supported || connection == null) return;
+    if (!supported) return;
     final gen = _generation;
+    final revision = ++_permissionRevision;
     try {
       final enabled = await noticeChannel.invokeMethod<bool>(
         request ? 'enable' : 'status',
       );
-      if (!_current(gen)) return;
+      if (!_current(gen) || revision != _permissionRevision) return;
       allowed = enabled == true;
       notifyListeners();
-      await _takeOpen(gen);
+      if (connection != null) await _takeOpen(gen);
     } on PlatformException catch (e) {
-      if (_current(gen)) {
+      if (_current(gen) && revision == _permissionRevision) {
         error = e.message;
         notifyListeners();
       }
@@ -142,11 +172,12 @@ class DeviceInbox extends ChangeNotifier {
   }
 
   Future<void> _takeOpen(int gen) async {
+    if (_onOpen == null || !_current(gen)) return;
     final tap = await noticeChannel.invokeMapMethod<String, dynamic>(
       'takeOpen',
     );
-    if (_current(gen) && tap != null && tap['scope'] == connection!.scope) {
-      onOpen?.call(tap['scope'], tap['id']);
+    if (_current(gen) && tap != null && tap['scope'] == connection?.scope) {
+      _onOpen?.call(tap['scope'], tap['id']);
     }
   }
 
@@ -163,22 +194,28 @@ class DeviceInbox extends ChangeNotifier {
     _polling = true;
     final gen = _generation;
     try {
-      await receiveNotices(api, conn, (notice) async {
-        final fresh = await noticeChannel.invokeMethod<bool>(
-          'foregroundArrival',
-          {'scope': conn.scope, 'id': notice.id},
-        );
-        if (_current(gen) && fresh == true) onArrival?.call(notice);
-        return fresh != null;
-      }, active: () => foreground && _current(gen));
-      if (!_current(gen)) return;
       await refresh();
+      if (!_current(gen) || !foreground) return;
+      if (!available) {
+        _probeAt = DateTime.now().add(const Duration(minutes: 1));
+        return;
+      }
+      await receiveNotices(api, conn, (notice) async {
+        final presented = await noticeChannel
+            .invokeMethod<bool>('foregroundArrival', {
+              'scope': conn.scope,
+              'id': notice.id,
+              'title': notice.title,
+              'body': notice.body,
+            });
+        return presented != null;
+      }, active: () => foreground && _current(gen));
     } on ApiError catch (e) {
       if (!_current(gen)) return;
       if (e.status == 404) {
         available = false;
         notices = [];
-        unread = 0;
+        hasUnread = false;
         cursor = null;
         error = null;
         _probeAt = DateTime.now().add(const Duration(minutes: 1));
@@ -196,11 +233,23 @@ class DeviceInbox extends ChangeNotifier {
     }
   }
 
-  Future<void> refresh({bool more = false}) async {
-    final conn = connection;
-    if (conn == null || _disposed || loading || (more && cursor == null)) {
-      return;
+  Future<void> refresh({bool more = false}) {
+    if (_listing case final pending?) {
+      if (_listingMore == more) return pending;
+      final gen = _generation;
+      return pending.then((_) async {
+        if (_current(gen)) await refresh(more: more);
+      });
     }
+    final conn = connection;
+    if (conn == null || _disposed || (more && cursor == null)) {
+      return Future.value();
+    }
+    _listingMore = more;
+    return _listing = _readPage(conn, more);
+  }
+
+  Future<void> _readPage(Connection conn, bool more) async {
     final gen = _generation, request = ++_listGeneration;
     loading = true;
     try {
@@ -230,13 +279,19 @@ class DeviceInbox extends ChangeNotifier {
       cursor = tail;
       available = true;
       error = null;
-      unread = notices.where((n) => !n.read && !n.expired).length;
+      var found = notices.any((n) => !n.read && !n.expired);
+      if (!found && tail != null) {
+        final older = await api.request(conn, 'notifications?unread=1&limit=1');
+        if (!_current(gen) || request != _listGeneration) return;
+        found = (older['items'] as List).isNotEmpty;
+      }
+      hasUnread = found;
     } on ApiError catch (e) {
       if (!_current(gen)) return;
       if (e.status == 404) {
         available = false;
         notices = [];
-        unread = 0;
+        hasUnread = false;
         cursor = null;
         error = null;
       } else {
@@ -246,15 +301,30 @@ class DeviceInbox extends ChangeNotifier {
       if (_current(gen)) error = e.toString();
     } finally {
       if (_current(gen) && request == _listGeneration) {
+        _listing = null;
         loading = false;
         notifyListeners();
       }
     }
   }
 
+  Future<DeviceNotice?> findNotice(String id) async {
+    final gen = _generation;
+    await refresh();
+    final seen = <String>{};
+    while (_current(gen)) {
+      final notice = notices.where((item) => item.id == id).firstOrNull;
+      if (notice != null) return notice;
+      final next = cursor;
+      if (next == null || error != null || !seen.add(next)) break;
+      await refresh(more: true);
+    }
+    return null;
+  }
+
   Future<void> markRead(DeviceNotice notice) async {
     final conn = connection;
-    if (conn == null || notice.read) return;
+    if (conn == null || !notice.inInbox || notice.read) return;
     await api.request(
       conn,
       'notifications/${_segment(notice.id)}/read',
@@ -271,14 +341,76 @@ class DeviceInbox extends ChangeNotifier {
     });
     _listGeneration++;
     loading = false;
+    _listing = null;
     await refresh();
   }
 
   Future<bool> save(DeviceNotice notice, NoticeFile file) async {
     final conn = connection!;
+    final url =
+        '${conn.url}/v1/notifications/${_segment(notice.id)}/files/${_segment(file.id)}';
+    if (Platform.isIOS) {
+      if (file.size < 0 || file.size > 8 * 1024 * 1024) {
+        throw const FormatException('附件大小超出限制');
+      }
+      final dir = await Directory.systemTemp.createTemp('wintermute-notice-');
+      final name = file.name
+          .split(RegExp(r'[/\\]'))
+          .last
+          .replaceAll(RegExp(r'[\x00-\x1f:]'), '')
+          .trim();
+      final output = File.fromUri(
+        dir.uri.resolveUri(
+          Uri(
+            pathSegments: [
+              name.isEmpty || name == '.' || name == '..' ? '附件' : name,
+            ],
+          ),
+        ),
+      );
+      final client = HttpClient()
+        ..connectionTimeout = const Duration(seconds: 8);
+      try {
+        final request = await client.getUrl(Uri.parse(url));
+        request.followRedirects = false;
+        conn.identify(request.headers);
+        request.headers.set(
+          HttpHeaders.authorizationHeader,
+          'Bearer ${conn.token}',
+        );
+        final response = await request.close().timeout(
+          const Duration(seconds: 20),
+        );
+        if (response.statusCode != HttpStatus.ok) {
+          throw HttpException('附件下载失败（HTTP ${response.statusCode}）');
+        }
+        var total = 0;
+        final sink = output.openWrite();
+        try {
+          await for (final bytes in response.timeout(
+            const Duration(seconds: 20),
+          )) {
+            total += bytes.length;
+            if (total > file.size) throw const FormatException('附件大小不匹配');
+            sink.add(bytes);
+          }
+        } finally {
+          await sink.close();
+        }
+        if (total != file.size) throw const FormatException('附件下载不完整');
+        if (connection != conn || _disposed) return false;
+        return await noticeChannel.invokeMethod<bool>(
+              'exportAttachment',
+              output.path,
+            ) ??
+            false;
+      } finally {
+        client.close(force: true);
+        await dir.delete(recursive: true);
+      }
+    }
     return await noticeChannel.invokeMethod<bool>('saveAttachment', {
-          'url':
-              '${conn.url}/v1/notifications/${_segment(notice.id)}/files/${_segment(file.id)}',
+          'url': url,
           'deviceId': conn.deviceId,
           'installation': conn.installation,
           'token': conn.token,

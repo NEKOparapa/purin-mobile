@@ -64,11 +64,15 @@ internal class NoticeActions(private val activity: MainActivity, val channel: Me
                         }
                     }
                     if (!DeviceNotices.enabled(activity)) {
-                        val intent =
+                        val intent = if (Build.VERSION.SDK_INT >= 26) {
+                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS)
+                                .putExtra(Settings.EXTRA_APP_PACKAGE, activity.packageName)
+                        } else {
                             Intent(
                                 Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
                                 Uri.fromParts("package", activity.packageName, null),
                             )
+                        }
                         activity.startActivity(intent)
                     }
                     permissionDone(result)
@@ -80,8 +84,9 @@ internal class NoticeActions(private val activity: MainActivity, val channel: Me
                                 activity,
                                 call.argument<String>("scope")!!,
                                 call.argument<String>("id")!!,
-                                null,
-                                null,
+                                call.argument<String>("title").orEmpty(),
+                                call.argument<String>("body"),
+                                inApp = true,
                             )
                         else null
                     )

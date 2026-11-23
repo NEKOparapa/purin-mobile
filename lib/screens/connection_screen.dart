@@ -5,6 +5,7 @@ import '../data/agent_api.dart';
 import '../data/mobile_session.dart';
 import '../widgets/app_theme.dart';
 import '../widgets/shared.dart';
+import 'memory_screen.dart';
 import 'mobile_connectors_screen.dart';
 
 /// Settings for this device's connection, connectors, appearance and collection.
@@ -30,9 +31,8 @@ class ConnectionScreen extends StatelessWidget {
     return '已开启 · ${active.join(' / ')}';
   }
 
-  void _push(BuildContext context, Widget page) {
-    Navigator.of(context).push<void>(appleRoute(page));
-  }
+  Future<void> _push(BuildContext context, Widget page) =>
+      Navigator.of(context).push<void>(appleRoute(page));
 
   @override
   Widget build(BuildContext context) {
@@ -116,6 +116,22 @@ class ConnectionScreen extends StatelessWidget {
                             ),
                           ),
                         ),
+                        if (Theme.of(context).platform == TargetPlatform.iOS)
+                          SettingsTile(
+                            leading: const _CategoryIcon(
+                              icon: Icons.bookmarks_outlined,
+                            ),
+                            title: '记忆',
+                            showChevron: true,
+                            onTap: () async {
+                              session.page('记忆');
+                              await _push(context, const MemoryScreen());
+                              if (context.mounted &&
+                                  ModalRoute.isCurrentOf(context) == true) {
+                                session.page('连接与采集');
+                              }
+                            },
+                          ),
                       ],
                     ),
                     const SizedBox(height: 24),
@@ -530,36 +546,6 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                           ),
                         ),
                       ),
-                    if (session.deviceStatus.supported) ...[
-                      const SizedBox(height: 24),
-                      SettingsSection(
-                        title: '设备工具',
-                        children: [
-                          SettingsSwitchTile(
-                            title: '允许 Agent 查询设备状态',
-                            subtitle:
-                                connected && !session.canEnableDeviceStatus
-                                ? '请使用 HTTPS 或本机回环地址连接后启用。'
-                                : '应用在前台时可返回电量、版本和采集开关。',
-                            value: session.deviceStatusEnabled,
-                            onChanged: session.canEnableDeviceStatus
-                                ? session.setDeviceStatusEnabled
-                                : null,
-                          ),
-                          if (session.deviceStatusError != null)
-                            Padding(
-                              padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-                              child: Text(
-                                '设备工具连接失败 · ${session.deviceStatusError}',
-                                style: TextStyle(
-                                  fontSize: 12.5,
-                                  color: colors.error,
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ],
                   ],
                 );
               },

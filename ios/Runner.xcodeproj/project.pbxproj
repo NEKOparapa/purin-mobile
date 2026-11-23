@@ -19,6 +19,7 @@
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		9B6DD6C547B8480FA2B351A3 /* MobileSignals.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9B6DD6C547B8480FA2B351A2 /* MobileSignals.swift */; };
+		C7F402AC02A563E6F310490A /* IOSNotices.swift in Sources */ = {isa = PBXBuildFile; fileRef = C7F402AC02A563E6F3104909 /* IOSNotices.swift */; };
 		C6A47C210000000000000000 /* IOSConnectorHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A47C200000000000000000 /* IOSConnectorHost.swift */; };
 		C6A47C210000000000000001 /* IOSConnectorLocation.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A47C200000000000000001 /* IOSConnectorLocation.swift */; };
 		C6A47C210000000000000002 /* IOSPersonalData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6A47C200000000000000002 /* IOSPersonalData.swift */; };
@@ -63,6 +64,7 @@
 		74858FAD1ED2DC5600515810 /* Runner-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Runner-Bridging-Header.h"; sourceTree = "<group>"; };
 		74858FAE1ED2DC5600515810 /* AppDelegate.swift */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		9B6DD6C547B8480FA2B351A2 /* MobileSignals.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileSignals.swift; sourceTree = "<group>"; };
+		C7F402AC02A563E6F3104909 /* IOSNotices.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSNotices.swift; sourceTree = "<group>"; };
 		C6A47C200000000000000000 /* IOSConnectorHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSConnectorHost.swift; sourceTree = "<group>"; };
 		C6A47C200000000000000001 /* IOSConnectorLocation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSConnectorLocation.swift; sourceTree = "<group>"; };
 		C6A47C200000000000000002 /* IOSPersonalData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IOSPersonalData.swift; sourceTree = "<group>"; };
@@ -136,6 +138,7 @@
 				1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */,
 				74858FAE1ED2DC5600515810 /* AppDelegate.swift */,
 				9B6DD6C547B8480FA2B351A2 /* MobileSignals.swift */,
+				C7F402AC02A563E6F3104909 /* IOSNotices.swift */,
 				C6A47C200000000000000000 /* IOSConnectorHost.swift */,
 				C6A47C200000000000000001 /* IOSConnectorLocation.swift */,
 				C6A47C200000000000000002 /* IOSPersonalData.swift */,
@@ -281,6 +284,7 @@
 			files = (
 				74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */,
 				9B6DD6C547B8480FA2B351A3 /* MobileSignals.swift in Sources */,
+				C7F402AC02A563E6F310490A /* IOSNotices.swift in Sources */,
 				C6A47C210000000000000000 /* IOSConnectorHost.swift in Sources */,
 				C6A47C210000000000000001 /* IOSConnectorLocation.swift in Sources */,
 				C6A47C210000000000000002 /* IOSPersonalData.swift in Sources */,

@@ -17,9 +17,7 @@ class MobileSession extends ChangeNotifier {
     this.api, {
     MobileSignals? signals,
     MobileScreenshots? screenshots,
-    AndroidDeviceStatus? deviceStatus,
   }) : signals = signals ?? MobileSignals(),
-       deviceStatus = deviceStatus ?? AndroidDeviceStatus(),
        screenshots = screenshots ?? MobileScreenshots();
   final MobileStore store;
   String? installation;
@@ -27,7 +25,6 @@ class MobileSession extends ChangeNotifier {
   late final inbox = DeviceInbox(api);
   final MobileSignals signals;
   final MobileScreenshots screenshots;
-  final AndroidDeviceStatus deviceStatus;
   final connectors = MobileConnectors();
   bool connectorEnabled(MobileConnector item) => _tools.selected.contains(item);
   bool connectorGranted(MobileConnector item) =>
@@ -71,7 +68,7 @@ class MobileSession extends ChangeNotifier {
         }
       } finally {
         _notify();
-        await _pollDeviceStatus();
+        await _pollConnectors();
         issue = _tools.error;
       }
     });
@@ -83,12 +80,7 @@ class MobileSession extends ChangeNotifier {
       connectors.platform != ConnectorPlatform.unsupported &&
       connection != null &&
       secureToolConnection(connection!);
-  bool get canEnableDeviceStatus =>
-      deviceStatus.supported &&
-      connection != null &&
-      secureToolConnection(connection!);
-  bool get deviceStatusEnabled => _tools.enabled;
-  String? get deviceStatusError => _tools.error;
+  String? get connectorError => _tools.error;
   bool screenshotsEnabled = false;
   int screenshotInterval = 300, pendingScreenshots = 0;
   String screenshotAccess = 'unsupported';
@@ -335,19 +327,50 @@ class MobileSession extends ChangeNotifier {
     _observe();
   }
 
-  Future<void> send(String text) => _run(() async {
-    if (connection == null || text.trim().isEmpty) return;
-    final entry = <String, dynamic>{
-      'id': newEventId(),
-      'role': 'user',
-      'text': text.trim(),
-      'status': 'sending',
-    };
-    _outgoing.add(entry);
-    await _save();
-    _notify();
-    await _submit(entry);
-  });
+  Future<void> send(
+    String text, {
+    List<String> images = const [],
+    List<String> imageNames = const [],
+    List<Json> documents = const [],
+    Connection? expectedConnection,
+  }) async {
+    final target = expectedConnection ?? connection;
+    if (target == null) throw StateError('请先连接设备');
+    if (images.length + documents.length > 4 ||
+        images.length != imageNames.length) {
+      throw const FormatException('每条消息最多可添加 4 个附件');
+    }
+    final message = text.trim();
+    if (message.isEmpty && images.isEmpty && documents.isEmpty) return;
+    var saved = false;
+    await _run(() async {
+      if (connection != target) throw StateError('设备连接已更改，请重新发送');
+      final entry = <String, dynamic>{
+        'id': newEventId(),
+        'role': 'user',
+        'text': message.isNotEmpty
+            ? message
+            : documents.isNotEmpty
+            ? '请阅读附件。'
+            : '请描述图片内容。',
+        if (images.isNotEmpty) 'images': images,
+        if (imageNames.isNotEmpty) 'image_names': imageNames,
+        if (documents.isNotEmpty) 'documents': documents,
+        'status': 'sending',
+      };
+      _outgoing.add(entry);
+      try {
+        await _save();
+      } catch (_) {
+        _outgoing.remove(entry);
+        rethrow;
+      }
+      saved = true;
+      _notify();
+      await _submit(entry);
+    });
+    if (!saved) throw StateError(error ?? '消息未保存，请重试');
+  }
 
   Future<void> retry(Json entry) => _run(() async {
     if (_outgoing.contains(entry) && entry['job'] == null) await _submit(entry);
@@ -419,8 +442,15 @@ class MobileSession extends ChangeNotifier {
     try {
       final result = await api.request(
         connection!,
-        'messages',
-        body: {'message_id': entry['id'], 'text': entry['text']},
+        (entry['images'] as List?)?.isNotEmpty == true
+            ? 'messages/images'
+            : 'messages',
+        body: {
+          'message_id': entry['id'],
+          'text': entry['text'],
+          for (final key in ['images', 'image_names', 'documents'])
+            if (entry[key] != null) key: entry[key],
+        },
       );
       entry['event_id'] = result['event_id'] as String;
       entry['job'] = result['job_id'] as String?;
@@ -467,37 +497,19 @@ class MobileSession extends ChangeNotifier {
         }
       });
       if (connectors.platform != ConnectorPlatform.unsupported && _foreground) {
-        await _run(_pollDeviceStatus);
+        await _run(_pollConnectors);
       }
     } finally {
       _syncing = false;
     }
   }
 
-  Future<void> setDeviceStatusEnabled(bool enabled) => _run(() async {
-    if (!canEnableDeviceStatus) return;
-    _tools.setEnabled(enabled);
-    await _save();
-    _notify();
-    await _pollDeviceStatus();
-  });
-
-  Future<void> _pollDeviceStatus() async {
+  Future<void> _pollConnectors() async {
     final conn = connection;
     if (conn == null) return;
     await _tools.poll(
       api,
       conn,
-      () async => {
-        'platform': 'android',
-        ...await deviceStatus.read(),
-        'collection': {
-          'app_activity': collecting,
-          'location': locationEnabled,
-          'app_usage': usageEnabled,
-          'screenshots': screenshotsEnabled,
-        },
-      },
       connectors,
       _save,
       () => _foreground && !_disposed,

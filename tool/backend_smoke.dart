@@ -116,27 +116,6 @@ Future<void> main() async {
     },
   );
   check(answered['status'] == 'answered', 'Question answer was not saved');
-  final claim = await api.request(
-    connection,
-    'terminal-tools/claim',
-    body: {
-      'tools': ['device_status'],
-    },
-  );
-  final call = claim['call'] as Json;
-  check(call['tool'] == 'device_status', 'Wrong remote tool');
-  await api.request(
-    connection,
-    'terminal-tools/${call['id']}/result',
-    body: {
-      'claim_token': call['claim_token'],
-      'status': 'succeeded',
-      'stdout': '{}',
-      'stderr': '',
-      'exit_code': 0,
-      'truncated': false,
-    },
-  );
   try {
     await api.request(
       Connection(url, 'mobile-test', 'incorrect'),
@@ -150,6 +129,6 @@ Future<void> main() async {
     );
   }
   stdout.writeln(
-    'Mobile: chat, shared history, perception, slices, JPEG, notifications, questions, tools OK',
+    'Mobile: chat, shared history, perception, slices, JPEG, notifications, questions OK',
   );
 }

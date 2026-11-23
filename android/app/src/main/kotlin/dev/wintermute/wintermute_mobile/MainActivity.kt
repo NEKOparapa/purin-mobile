@@ -3,12 +3,10 @@ package dev.wintermute.wintermute_mobile
 import android.Manifest
 import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.content.IntentFilter
 import android.net.Uri
 import android.media.projection.MediaProjectionManager
 import android.media.projection.MediaProjectionConfig
 import android.os.Build
-import android.os.BatteryManager
 import android.provider.Settings
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -123,7 +121,6 @@ class MainActivity : FlutterActivity() {
                         signals.status(this)
                     }
                     "status" -> signals.status(this)
-                    "deviceStatus" -> deviceStatus()
                     "read" -> signals.read(scope)
                     "ack" -> {
                         signals.ack(scope, call.argument<List<String>>("ids").orEmpty())
@@ -139,25 +136,6 @@ class MainActivity : FlutterActivity() {
                 runOnUiThread { result.error("mobile_signals", error.message, null) }
             }
         }
-    }
-
-    @Suppress("DEPRECATION")
-    private fun deviceStatus(): Map<String, Any?> {
-        val battery = applicationContext.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
-        val level = battery?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
-        val scale = battery?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-        val charging = when (battery?.getIntExtra(BatteryManager.EXTRA_STATUS, -1)) {
-            BatteryManager.BATTERY_STATUS_CHARGING, BatteryManager.BATTERY_STATUS_FULL -> true
-            BatteryManager.BATTERY_STATUS_DISCHARGING, BatteryManager.BATTERY_STATUS_NOT_CHARGING -> false
-            else -> null
-        }
-        return mapOf(
-            "android_version" to Build.VERSION.RELEASE,
-            "android_sdk" to Build.VERSION.SDK_INT,
-            "app_version" to packageManager.getPackageInfo(packageName, 0).versionName,
-            "battery_percent" to if (level >= 0 && scale > 0) (100 * level / scale).coerceIn(0, 100) else null,
-            "charging" to charging
-        )
     }
 
     private fun permission(source: String, settings: Boolean, result: MethodChannel.Result) {
