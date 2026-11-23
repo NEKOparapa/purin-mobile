@@ -130,24 +130,14 @@ class _ScheduleScreenState extends State<ScheduleScreen>
   Future<void> _read(Connection connection, int revision) async {
     bool current() => mounted && revision == _revision;
     try {
-      final entries = <String, ScheduleEntry>{};
-      await for (final rows in schedulePages(
+      final ordered = await readScheduleRange(
         widget.api,
         connection,
         _start,
         _end,
-      )) {
-        if (!current()) return;
-        for (final entry in rows) {
-          entries[entry.id] = entry;
-        }
-      }
+        current: current,
+      );
       if (!current()) return;
-      final ordered = entries.values.toList()
-        ..sort((a, b) {
-          final order = a.at.compareTo(b.at);
-          return order != 0 ? order : a.id.compareTo(b.id);
-        });
       final byDay = <DateTime, List<ScheduleEntry>>{};
       for (final entry in ordered) {
         (byDay[DateUtils.dateOnly(entry.at)] ??= []).add(entry);

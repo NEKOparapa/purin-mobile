@@ -8,6 +8,7 @@ import UserNotifications
   private let screenshots = Screenshots()
   private let connectors = IOSConnectorHost()
   let notices = IOSNotices()
+  let island = IslandActivityHost()
 
   override func application(
     _ application: UIApplication,
@@ -25,5 +26,6 @@ import UserNotifications
     screenshots.register(with: engineBridge.applicationRegistrar.messenger())
     connectors.register(with: engineBridge.applicationRegistrar.messenger())
     notices.register(with: engineBridge.applicationRegistrar.messenger())
+    island.register(engineBridge.applicationRegistrar.messenger())
   }
 }

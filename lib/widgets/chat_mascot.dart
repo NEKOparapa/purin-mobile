@@ -10,11 +10,13 @@ class ChatMascot extends StatefulWidget {
     required this.replyId,
     required this.historyLoaded,
     required this.compact,
+    required this.onFold,
   });
   final TextEditingController input;
   final FocusNode focus;
   final bool thinking, historyLoaded, compact;
   final String? replyId;
+  final VoidCallback onFold;
 
   @override
   State<ChatMascot> createState() => _ChatMascotState();
@@ -91,36 +93,49 @@ class _ChatMascotState extends State<ChatMascot> {
     final suffix = MediaQuery.disableAnimationsOf(context) ? '-still' : '';
     final side = widget.compact ? 32.0 : 46.0;
     final colors = Theme.of(context).colorScheme;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Image.asset(
-          'assets/mascot/$mood$suffix.webp',
-          width: side,
-          height: side,
-          gaplessPlayback: true,
-          excludeFromSemantics: true,
-        ),
-        const SizedBox(height: 4),
-        DecoratedBox(
-          decoration: ShapeDecoration(
-            color: colors.surfaceContainer.withValues(alpha: .94),
-            shape: const StadiumBorder(),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 7),
-            child: Text(
-              'Wintermute',
-              style: TextStyle(
-                fontSize: 13,
-                height: 1.3,
-                fontWeight: FontWeight.w500,
-                color: colors.onSurface,
+    return Semantics(
+      button: true,
+      label: '收起助手到顶部胶囊',
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: widget.onFold,
+        child: ExcludeSemantics(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Hero(
+                tag: 'wintermute-island-cat',
+                child: Image.asset(
+                  'assets/mascot/$mood$suffix.webp',
+                  width: side,
+                  height: side,
+                  gaplessPlayback: true,
+                  excludeFromSemantics: true,
+                ),
               ),
-            ),
+              const SizedBox(height: 4),
+              DecoratedBox(
+                decoration: ShapeDecoration(
+                  color: colors.surfaceContainer.withValues(alpha: .94),
+                  shape: const StadiumBorder(),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 7),
+                  child: Text(
+                    'Wintermute',
+                    style: TextStyle(
+                      fontSize: 13,
+                      height: 1.3,
+                      fontWeight: FontWeight.w500,
+                      color: colors.onSurface,
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }

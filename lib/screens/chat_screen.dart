@@ -1,14 +1,17 @@
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
 import '../data/agent_api.dart';
 import '../data/device_inbox.dart';
+import '../data/island_activity.dart';
 import '../data/mobile_session.dart';
 import '../widgets/app_theme.dart';
 import '../widgets/chat_bubble.dart';
 import '../widgets/chat_composer.dart';
 import '../widgets/chat_mascot.dart';
+import '../widgets/mascot_island.dart';
 import '../widgets/question_cards.dart';
 import '../widgets/shared.dart';
 import 'connection_screen.dart';
@@ -24,6 +27,7 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   PageRoute<void>? _scheduleRoute;
+  ({String id, Connection? connection})? _systemFold;
   final _openedNotice = ValueNotifier<({String scope, DeviceNotice notice})?>(
     null,
   );
@@ -39,6 +43,12 @@ class _ChatScreenState extends State<ChatScreen> {
     super.initState();
     _focus.addListener(_updateFocus);
     widget.session.inbox.onOpen = _openNotice;
+    IslandActivity.listenForOpen(_returnToChat);
+  }
+
+  void _returnToChat() {
+    if (_systemFold != null) setState(() => _systemFold = null);
+    Navigator.of(context).popUntil((route) => route.isFirst);
   }
 
   int _openRequest = 0;
@@ -71,14 +81,48 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _updateFocus() => setState(() {});
 
-  void _openSchedule() {
+  void _foldAssistant() {
+    if (_systemFold != null || _scheduleRoute != null) return;
+    final id = DateTime.now().microsecondsSinceEpoch.toString();
+    if (defaultTargetPlatform == TargetPlatform.android) {
+      setState(
+        () => _systemFold = (id: id, connection: widget.session.connection),
+      );
+    } else {
+      _openSchedule(islandId: id);
+    }
+  }
+
+  void _systemFoldResult(String id, String? result) {
+    if (!mounted || _systemFold?.id != id || result == 'promoted') return;
+    setState(() => _systemFold = null);
+    if (result == 'cancelled' || ModalRoute.isCurrentOf(context) != true) {
+      return;
+    }
+    _openSchedule(islandId: id);
+    final message = switch (result) {
+      'disabled' => '通知权限或助手胶囊通知已关闭，当前在应用内显示',
+      'notPromoted' => '系统未显示实时胶囊，当前在应用内显示',
+      'unavailable' => '系统胶囊暂时不可用，当前在应用内显示',
+      _ => null,
+    };
+    if (message != null) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
+    }
+  }
+
+  void _openSchedule({String? islandId}) {
+    if (_systemFold != null) setState(() => _systemFold = null);
     if (_scheduleRoute?.isCurrent ?? false) return;
     FocusManager.instance.primaryFocus?.unfocus();
     _openedNotice.value = null;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    Widget page(BuildContext context) => _schedulePage(context, islandId);
     final PageRoute<void> route =
         Theme.of(context).platform == TargetPlatform.iOS
-        ? CupertinoPageRoute<void>(builder: _schedulePage)
+        ? CupertinoPageRoute<void>(builder: page)
         : PageRouteBuilder<void>(
             transitionDuration: reduceMotion
                 ? Duration.zero
@@ -86,7 +130,7 @@ class _ChatScreenState extends State<ChatScreen> {
             reverseTransitionDuration: reduceMotion
                 ? Duration.zero
                 : const Duration(milliseconds: 170),
-            pageBuilder: (context, _, _) => _schedulePage(context),
+            pageBuilder: (context, _, _) => page(context),
             transitionsBuilder: (context, animation, _, child) =>
                 SlideTransition(
                   position: animation.drive(
@@ -108,7 +152,7 @@ class _ChatScreenState extends State<ChatScreen> {
     });
   }
 
-  Widget _schedulePage(BuildContext context) {
+  Widget _schedulePage(BuildContext context, String? islandId) {
     final session = widget.session;
     final safeTop = MediaQuery.paddingOf(context).top;
     final toolbarHeight =
@@ -172,6 +216,19 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                 ),
               ),
+              if (islandId != null)
+                Positioned.fill(
+                  top: safeTop,
+                  child: ListenableBuilder(
+                    listenable: session,
+                    builder: (context, _) => MascotIsland(
+                      key: ObjectKey(session.connection),
+                      islandId: islandId,
+                      session: session,
+                      onReturn: _returnToChat,
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -216,6 +273,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   @override
   void dispose() {
+    IslandActivity.listenForOpen(null);
     widget.session.inbox.onOpen = null;
     _openedNotice.dispose();
     _input.dispose();
@@ -245,6 +303,10 @@ class _ChatScreenState extends State<ChatScreen> {
         builder: (context, _) {
           final messages = session.messages;
           final scope = session.connection?.scope;
+          if (_systemFold case final fold?
+              when fold.connection != session.connection) {
+            _systemFold = null;
+          }
           if (scope != _scope || messages.length != _lastCount) {
             final follow =
                 scope != _scope ||
@@ -295,6 +357,20 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                       ),
                     ),
+                  if (_systemFold case final fold?) ...[
+                    const ModalBarrier(
+                      dismissible: false,
+                      color: Colors.transparent,
+                    ),
+                    MascotIsland(
+                      key: ValueKey(fold.id),
+                      session: session,
+                      islandId: fold.id,
+                      onReturn: _returnToChat,
+                      onSystemFold: (result) =>
+                          _systemFoldResult(fold.id, result),
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -341,6 +417,7 @@ class _ChatScreenState extends State<ChatScreen> {
               replyId: reply?['id'] as String?,
               historyLoaded: session.chatHistoryLoaded,
               compact: compact,
+              onFold: _foldAssistant,
             ),
           ),
           trailing: _settingsButton(),

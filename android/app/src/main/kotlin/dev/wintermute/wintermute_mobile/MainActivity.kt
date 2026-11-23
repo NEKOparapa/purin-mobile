@@ -20,6 +20,7 @@ class MainActivity : FlutterActivity() {
     private var shotToken: String? = null
     private var shotChannel: MethodChannel? = null
     private var notices: NoticeActions? = null
+    private var island: IslandNotifications? = null
     private var connectors: AndroidConnectorHost? = null
     private var connectorChannel: MethodChannel? = null
 
@@ -31,6 +32,7 @@ class MainActivity : FlutterActivity() {
         }
         val noticeChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DeviceNotices.CHANNEL)
         notices = NoticeActions(this, noticeChannel).also { noticeChannel.setMethodCallHandler(it::handle) }
+        island = IslandNotifications(this, MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.wintermute/island"))
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.wintermute/mobile_signals")
             .setMethodCallHandler(::onSignalMethod)
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.wintermute/screenshots")
@@ -46,6 +48,9 @@ class MainActivity : FlutterActivity() {
         connectors = null
         notices?.channel?.setMethodCallHandler(null)
         notices = null
+        island?.clear()
+        island?.channel?.setMethodCallHandler(null)
+        island = null
         if (signals.screenshots.channel === shotChannel) signals.screenshots.channel = null
         shotChannel?.setMethodCallHandler(null)
         shotChannel = null
@@ -55,10 +60,22 @@ class MainActivity : FlutterActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        if(intent.action==DeviceNotices.OPEN) notices?.channel?.invokeMethod("openNotice",null)
+        if (intent.action == DeviceNotices.OPEN) {
+            island?.clear()
+            notices?.channel?.invokeMethod("openNotice", null)
+        }
+        if (intent.action == IslandNotifications.OPEN) {
+            island?.clear()
+            island?.channel?.invokeMethod("openChat", null)
+            intent.action = null
+        }
     }
 
-    override fun onResume(){super.onResume();DeviceNotices.foreground=true}
+    override fun onResume() {
+        super.onResume()
+        DeviceNotices.foreground = true
+        island?.resumed()
+    }
     override fun onPause(){DeviceNotices.foreground=false;super.onPause()}
 
     private fun onScreenshotMethod(call: MethodCall, result: MethodChannel.Result) {

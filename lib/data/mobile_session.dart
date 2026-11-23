@@ -112,6 +112,15 @@ class MobileSession extends ChangeNotifier {
   bool get chatHistoryLoaded => _history.loaded;
   List<Json> _serverMessages = [];
   List<Json> _outgoing = [];
+  ({String id, String? job})? get pendingIslandReply {
+    for (final entry in _outgoing.reversed) {
+      if (const {'sending', 'queued', 'running'}.contains(entry['status'])) {
+        return (id: entry['id'] as String, job: entry['job'] as String?);
+      }
+    }
+    return null;
+  }
+
   List<PendingQuestion> questions = [];
   List<Json> get messages {
     if (_outgoing.isEmpty) return _serverMessages;

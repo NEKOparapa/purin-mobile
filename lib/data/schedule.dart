@@ -77,3 +77,25 @@ Stream<List<ScheduleEntry>> schedulePages(
     }
   }
 }
+
+Future<List<ScheduleEntry>> readScheduleRange(
+  AgentApi api,
+  Connection connection,
+  DateTime start,
+  DateTime end, {
+  required bool Function() current,
+}) async {
+  final entries = <String, ScheduleEntry>{};
+  await for (final page in schedulePages(api, connection, start, end)) {
+    if (!current()) break;
+    for (final entry in page) {
+      if (!entry.at.isBefore(start) && entry.at.isBefore(end)) {
+        entries[entry.id] = entry;
+      }
+    }
+  }
+  return entries.values.toList()..sort((a, b) {
+    final time = a.at.compareTo(b.at);
+    return time == 0 ? a.id.compareTo(b.id) : time;
+  });
+}

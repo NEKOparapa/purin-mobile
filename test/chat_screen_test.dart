@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:wintermute_mobile/data/agent_api.dart';
 import 'package:wintermute_mobile/data/mobile_session.dart';
@@ -7,9 +9,10 @@ import 'package:wintermute_mobile/screens/chat_screen.dart';
 import 'package:wintermute_mobile/screens/connection_screen.dart';
 import 'package:wintermute_mobile/screens/schedule_screen.dart';
 import 'package:wintermute_mobile/widgets/app_theme.dart';
+import 'package:wintermute_mobile/widgets/mascot_island.dart';
 
 class _Session extends MobileSession {
-  _Session() : super(DeviceStore(), AgentApi()) {
+  _Session([AgentApi? api]) : super(DeviceStore(), api ?? AgentApi()) {
     ready = true;
     installation = 'test-installation';
     connection = Connection('http://localhost', 'phone', 'test');
@@ -46,8 +49,9 @@ Future<_Session> _openChat(
   TargetPlatform platform = TargetPlatform.android,
   bool connected = true,
   bool animate = false,
+  AgentApi? api,
 }) async {
-  final session = _Session();
+  final session = _Session(api);
   if (!connected) session.connection = null;
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = const Size(360, 680);
@@ -68,7 +72,199 @@ Future<_Session> _openChat(
 Finder _pose(String name) =>
     find.image(AssetImage('assets/mascot/$name-still.webp'));
 
+class _IslandApi extends AgentApi {
+  final ranges = <Uri>[];
+  @override
+  Future<Json> request(Connection connection, String path, {Json? body}) async {
+    final uri = Uri.parse(path);
+    ranges.add(uri);
+    final now = DateTime.now();
+    Json entry(String id, int hour, {bool notice = false, int offset = 0}) {
+      final at = DateTime(
+        now.year,
+        now.month,
+        now.day + offset,
+        hour,
+      ).toUtc().toIso8601String();
+      return {
+        'id': id,
+        'trigger_at': at,
+        'action': 'notify_agent',
+        'status': 'scheduled',
+        'title': id,
+        if (notice)
+          'notification': {
+            'id': 'n1',
+            'title': '取件提醒',
+            'body': '快递已到',
+            'notify_at': at,
+            'attachments': [],
+          },
+      };
+    }
+
+    return {
+      'items': uri.queryParameters.containsKey('cursor')
+          ? [entry('设计讨论', 14), entry('明日事项', 11, offset: 1)]
+          : [entry('通知', 9, notice: true)],
+      'next_cursor': uri.queryParameters.containsKey('cursor') ? null : 'next',
+    };
+  }
+}
+
 void main() {
+  testWidgets(
+    'Android 系统胶囊沿用同一会话更新今日摘要，点系统卡片恢复聊天并清理通知',
+    (tester) async {
+      const channel = MethodChannel('dev.wintermute/island');
+      final calls = <MethodCall>[];
+      final promotion = Completer<String>();
+      final messenger = tester.binding.defaultBinaryMessenger;
+      messenger.setMockMethodCallHandler(channel, (call) async {
+        calls.add(call);
+        if (call.method == 'fold') return promotion.future;
+        return null;
+      });
+      addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+      await _openChat(tester, api: _IslandApi());
+      await tester.enterText(find.byType(TextField), '原草稿');
+      await tester.tap(find.text('Wintermute'));
+      final head = find.image(
+        const AssetImage('assets/mascot/island-head@3x.png'),
+      );
+      void expectOriginalFrame() {
+        expect(find.text('Wintermute'), findsOneWidget);
+        expect(find.byType(ScheduleScreen), findsNothing);
+        expect(head, findsNothing);
+        expect(find.byIcon(Icons.bedtime_outlined), findsNothing);
+      }
+
+      await tester.pump();
+      expectOriginalFrame();
+      await tester.pump(const Duration(milliseconds: 80));
+      expectOriginalFrame();
+      promotion.complete('promoted');
+      await tester.pumpAndSettle();
+      expectOriginalFrame();
+      final owner = calls
+          .singleWhere((c) => c.method == 'fold')
+          .arguments['owner'];
+      final summary = calls.lastWhere((c) => c.method == 'set').arguments;
+      expect(summary['owner'], owner);
+      expect(summary['lines'].join(' '), contains('取件提醒'));
+      expect(summary['lines'].join(' '), contains('设计讨论'));
+      await messenger.handlePlatformMessage(
+        channel.name,
+        channel.codec.encodeMethodCall(const MethodCall('openChat')),
+        (_) {},
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.widget<TextField>(find.byType(TextField)).controller!.text,
+        '原草稿',
+      );
+      expect(calls.last.method, 'clear');
+      expect(calls.last.arguments, owner);
+    },
+    variant: TargetPlatformVariant.only(TargetPlatform.android),
+  );
+  for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
+    testWidgets(
+      '${platform.name} 头像收起、胶囊显示今日通知和安排，再点返回原草稿',
+      (tester) async {
+        if (platform == TargetPlatform.android) {
+          const channel = MethodChannel('dev.wintermute/island');
+          final messenger = tester.binding.defaultBinaryMessenger;
+          messenger.setMockMethodCallHandler(
+            channel,
+            (call) async => call.method == 'fold' ? 'notPromoted' : null,
+          );
+          addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
+        }
+        final api = _IslandApi();
+        final session = await _openChat(
+          tester,
+          api: api,
+          platform: platform,
+          animate: true,
+        );
+        session.add('user', '看看今天', status: 'queued');
+        await tester.pump();
+        await tester.enterText(find.byType(TextField), '未发送的草稿');
+        await tester.tap(find.text('Wintermute'));
+        await tester.pump();
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        final island = find.byType(MascotIsland);
+        final head = find.image(
+          const AssetImage('assets/mascot/island-head@3x.png'),
+        );
+        expect(head, findsOneWidget);
+        expect(
+          find.descendant(
+            of: island,
+            matching: find.byIcon(Icons.more_horiz_rounded),
+          ),
+          findsOneWidget,
+        );
+        expect(find.text('今日通知与安排'), findsNothing);
+        session.add('assistant', '安排已整理好');
+        await tester.pump();
+        expect(find.byIcon(Icons.mark_email_unread_outlined), findsOneWidget);
+        await tester.tap(
+          find.descendant(of: island, matching: find.byType(InkWell)).first,
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 350));
+        expect(tester.takeException(), isNull);
+        expect(head, findsNothing);
+        expect(
+          find.descendant(
+            of: island,
+            matching: find.byIcon(Icons.mark_email_unread_outlined),
+          ),
+          findsNothing,
+        );
+        for (final title in ['今日通知与安排', '取件提醒', '快递已到', '设计讨论']) {
+          expect(
+            find.descendant(of: island, matching: find.text(title)),
+            findsOneWidget,
+          );
+        }
+        expect(
+          find.descendant(of: island, matching: find.text('明日事项')),
+          findsNothing,
+        );
+        final day = DateUtils.dateOnly(DateTime.now());
+        expect(
+          api.ranges.any(
+            (u) =>
+                u.queryParameters['start'] == day.toUtc().toIso8601String() &&
+                u.queryParameters['end'] ==
+                    DateTime(
+                      day.year,
+                      day.month,
+                      day.day + 1,
+                    ).toUtc().toIso8601String() &&
+                u.queryParameters['include_notifications'] == '1' &&
+                u.queryParameters['cursor'] == 'next',
+          ),
+          isTrue,
+        );
+        await tester.tap(find.text('今日通知与安排'));
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 500));
+        await tester.pump(const Duration(milliseconds: 500));
+        expect(island, findsNothing);
+        expect(
+          tester.widget<TextField>(find.byType(TextField)).controller!.text,
+          '未发送的草稿',
+        );
+        expect(find.text('安排已整理好'), findsOneWidget);
+      },
+      variant: TargetPlatformVariant.only(platform),
+    );
+  }
   testWidgets('聊天与日程右上角一键打开设置，返回后保留草稿和原页面', (tester) async {
     final session = await _openChat(tester, animate: true);
     session.add('assistant', '散步吗？');
