@@ -100,8 +100,8 @@ class MainActivity : FlutterActivity() {
             try {
                 val scope = call.argument<String>("scope").orEmpty()
                 val value: Any? = when (call.method) {
-                    "configure" -> shots.configure(scope, call.argument<Boolean>("enabled") == true,
-                        call.argument<Int>("intervalSeconds") ?: 300)
+                    "configure" -> shots.configure(scope, call.argument<Boolean>("enabled") == true)
+                    "visitFrame" -> shots.visitFrame(scope, call.argument<String>("id").orEmpty())
                     "read" -> shots.read(scope)
                     "bytes" -> shots.bytes(scope, call.argument<String>("id").orEmpty())
                     "ack" -> { shots.ack(scope, call.argument<List<String>>("ids").orEmpty()); null }
@@ -116,7 +116,7 @@ class MainActivity : FlutterActivity() {
 
     private fun onSignalMethod(call: MethodCall, result: MethodChannel.Result) {
         if (call.method == "deviceName") {
-            result.success(Build.MODEL)
+            result.success(systemDeviceName())
             return
         }
         if (call.method == "request" || call.method == "settings") {
@@ -134,7 +134,7 @@ class MainActivity : FlutterActivity() {
                 val value: Any? = when (call.method) {
                     "configure" -> {
                         signals.configure(scope, call.argument<Boolean>("location") == true,
-                            call.argument<Boolean>("usage") == true)
+                            call.argument<Boolean>("usage") == true, call.argument<Boolean>("network") == true)
                         signals.status(this)
                     }
                     "status" -> signals.status(this)

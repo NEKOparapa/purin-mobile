@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'screens/chat_screen.dart';
 import 'data/mobile_session.dart';
 import 'data/mobile_store.dart';
+import 'data/mobile_signals.dart';
 import 'data/device_inbox.dart';
 import 'data/agent_api.dart';
 import 'widgets/app_theme.dart';
@@ -11,6 +12,62 @@ void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   runApp(const WintermuteApp());
+}
+
+@pragma('vm:entry-point')
+Future<void> usageWorker() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  const channel = MethodChannel('dev.wintermute/usage_worker');
+  final store = DeviceStore();
+  final api = AgentApi();
+  var retrySeconds = 0;
+  while (true) {
+    var delay = const Duration(seconds: 2);
+    try {
+      final next = await channel.invokeMapMethod<String, dynamic>('next');
+      if (next != null) {
+        final conn = await store.connection();
+        final row = Json.from(next['row'] as Map);
+        final body = row['source'] == 'location'
+            ? LocationFix.fromRecord(row)?.perception(
+                row['id'] as String,
+                DateTime.fromMillisecondsSinceEpoch(
+                  row['at'] as int,
+                  isUtc: true,
+                ),
+              )
+            : AppUsage.fromRecord(row)?.perception;
+        final key = {
+          'scope': next['scope'],
+          'id': row['id'],
+          'source': row['source'],
+          'withFrame': row['hasVisitScreenshot'] == true,
+        };
+        final frame = row['hasVisitScreenshot'] == true
+            ? await channel.invokeMapMethod<String, dynamic>('visitFrame', key)
+            : null;
+        if (conn != null &&
+            conn.scope == next['scope'] &&
+            body != null &&
+            (row['hasVisitScreenshot'] != true || frame != null) &&
+            await channel.invokeMethod<bool>('canSend', key) == true) {
+          final receipt = frame == null
+              ? await api.request(conn, AppUsage.path, body: body)
+              : await api.uploadAppVisit(conn, body, frame);
+          if (receipt['event_id'] is! String) {
+            throw const FormatException('缺少使用时段回执');
+          }
+          await channel.invokeMethod<void>('ack', key);
+          delay = Duration.zero; // Drain already completed intervals in order.
+        }
+      }
+      retrySeconds = 0;
+    } catch (_) {
+      retrySeconds = retrySeconds == 0 ? 2 : (retrySeconds * 2).clamp(2, 60);
+      delay = Duration(seconds: retrySeconds);
+    }
+    await Future<void>.delayed(delay);
+  }
 }
 
 @pragma('vm:entry-point')

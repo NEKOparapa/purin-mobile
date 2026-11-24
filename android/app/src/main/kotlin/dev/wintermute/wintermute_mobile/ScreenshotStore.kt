@@ -19,20 +19,17 @@ internal class ScreenshotStore(
     fun changed() { main.post { channel?.invokeMethod("changed", null) } }
 
     val generation: String? get() = store["shotGeneration"]
-    val intervalMs: Long get() = (store["shotInterval"]?.toLongOrNull() ?: 300L) * 1000L
 
     fun allowed(scope: String?) = scope != null && scope.isNotEmpty() && scope == store["scope"] &&
         scope == store["shotScope"] && store["shotEnabled"] == "true" &&
         store["usage"] == "true" && usage.granted()
 
-    fun configure(scope: String, enabled: Boolean, seconds: Int): Map<String, Any> = store.transaction {
-        require(seconds in setOf(60, 300, 900))
+    fun configure(scope: String, enabled: Boolean): Map<String, Any> = store.transaction {
         if (scope != store["shotScope"] || !enabled || !usage.granted() || store["usage"] != "true") {
             stopAndClear()
         }
         store["shotScope"] = scope
         store["shotEnabled"] = enabled.toString()
-        store["shotInterval"] = seconds.toString()
         status(scope)
     }
 
@@ -50,7 +47,7 @@ internal class ScreenshotStore(
     }
 
     fun beginConsent(): String {
-        check(allowed(store["shotScope"])) { "请先开启截图并授权其他 App 使用时段" }
+        check(allowed(store["shotScope"])) { "请先开启截图和「记录前台应用活动」，并授予使用情况访问权" }
         check(activeGeneration == null) { "正在共享屏幕" }
         val token = UUID.randomUUID().toString()
         store["shotGeneration"] = token
@@ -89,7 +86,8 @@ internal class ScreenshotStore(
     }
 
     fun append(token: String, at: Long, app: UsageCapture.Foreground, jpeg: ByteArray) {
-        if (generation != token || activeGeneration != token || !allowed(store["shotScope"])) return
+        if (generation != token || activeGeneration != token || !allowed(store["shotScope"]) ||
+            at - app.start < VisitScreenshotTimer.DWELL_MS) return
         store.transaction {
             // Retain the first 32 frames until acknowledged. A paused uploader never overwrites them.
             val full = store.readableDatabase.rawQuery(
@@ -97,7 +95,7 @@ internal class ScreenshotStore(
             ).use { it.moveToFirst() }
             if (full) return@transaction
             val values = ContentValues().apply {
-                put("id", UUID.randomUUID().toString())
+                put("id", "visit:${app.id}")
                 put("at", at)
                 put("app", app.label)
                 put("package", app.pkg)
@@ -105,7 +103,8 @@ internal class ScreenshotStore(
                 put("activity_id", app.id)
                 put("jpeg", jpeg)
             }
-            store.writableDatabase.insertOrThrow("screenshots", null, values)
+            store.writableDatabase.insertWithOnConflict("screenshots", null, values,
+                android.database.sqlite.SQLiteDatabase.CONFLICT_IGNORE)
         }
         changed()
     }
@@ -113,7 +112,7 @@ internal class ScreenshotStore(
     fun read(scope: String): List<Map<String, Any>> {
         if (!allowed(scope)) return emptyList()
         return store.readableDatabase.rawQuery(
-            "SELECT id,at,app,package,start,activity_id FROM screenshots ORDER BY at,rowid LIMIT 8", null
+            "SELECT id,at,app,package,start,activity_id FROM screenshots WHERE id NOT LIKE 'visit:%' ORDER BY at,rowid LIMIT 8", null
         ).use { c -> buildList {
             while (c.moveToNext()) add(mapOf("id" to c.getString(0), "at" to c.getLong(1),
                 "app" to c.getString(2), "package" to c.getString(3), "start" to c.getLong(4),
@@ -126,6 +125,14 @@ internal class ScreenshotStore(
         return store.readableDatabase.rawQuery("SELECT jpeg FROM screenshots WHERE id=?", arrayOf(id)).use {
             if (it.moveToFirst()) it.getBlob(0) else null
         }
+    }
+
+    fun visitFrame(scope: String, id: String): Map<String, Any>? {
+        if (!allowed(scope)) return null
+        return store.readableDatabase.rawQuery(
+            "SELECT s.at,s.jpeg FROM screenshots s JOIN records r ON r.id=s.activity_id " +
+                "WHERE s.id=? AND r.id=? AND r.source='usage'", arrayOf("visit:$id", id)
+        ).use { if (it.moveToFirst()) mapOf("at" to it.getLong(0), "jpeg" to it.getBlob(1)) else null }
     }
 
     fun ack(scope: String, ids: List<String>) {

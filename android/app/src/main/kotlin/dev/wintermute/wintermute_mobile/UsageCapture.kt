@@ -4,6 +4,7 @@ import android.app.AppOpsManager
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
 import android.content.Context
+import android.content.Intent
 import android.os.Process
 import java.util.UUID
 import org.json.JSONObject
@@ -20,6 +21,9 @@ internal class UsageCapture(private val context: Context, private val store: Sig
 
     fun reset(enabled: Boolean) {
         store.clear("usage")
+        store.writableDatabase.delete("screenshots", "id LIKE 'visit:%'", null)
+        store["usageLatest"] = null
+        store["usageUploadedAt"] = null
         store["usageCursor"] = if (enabled && granted()) System.currentTimeMillis().toString() else null
         store["usageOpen"] = null
     }
@@ -62,16 +66,26 @@ internal class UsageCapture(private val context: Context, private val store: Sig
         if (from == endExclusive) return
         val events = manager.queryEvents(from, endExclusive) ?: return // User may still be locked.
         val open = if (from == cursor) JSONObject(store["usageOpen"] ?: "{}") else JSONObject()
+        // Record Android's HOME role alongside the span; the server decides what to filter.
+        val homePackages by lazy {
+            val home = Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME)
+            context.packageManager.queryIntentActivities(home, 0).map { it.activityInfo.packageName }.toSet()
+        }
+        val deviceName by lazy { context.systemDeviceName() }
         fun finish(pkg: String, at: Long) {
             val session = open.remove(pkg) as? JSONObject ?: return
             if (pkg == context.packageName) return
             val start = session.getLong("start")
+            val id = spanId(pkg, start)
+            store.writableDatabase.delete("screenshots", "id=? AND at>?", arrayOf("visit:$id", at.toString()))
             if (at <= start) return
             val record = JSONObject()
-                .put("id", spanId(pkg, start))
+                .put("id", id)
                 .put("source", "usage").put("at", at)
                 .put("package", pkg).put("label", label(pkg)).put("start", start).put("end", at)
+                .put("isHomeApp", pkg in homePackages).putOpt("deviceName", deviceName)
             store.append(record)
+            store["usageLatest"] = record.toString()
         }
         fun flushPaused(at: Long, nextPackage: String? = null) {
             for (pkg in open.keys().asSequence().toList()) {
@@ -114,7 +128,11 @@ internal class UsageCapture(private val context: Context, private val store: Sig
                 }
                 UsageEvents.Event.DEVICE_STARTUP -> {
                     // After an unclean shutdown the missing end time is unknown.
-                    for (name in open.keys().asSequence().toList()) open.remove(name)
+                    for (name in open.keys().asSequence().toList()) {
+                        val start = open.getJSONObject(name).getLong("start")
+                        store.writableDatabase.delete("screenshots", "id=?", arrayOf("visit:${spanId(name, start)}"))
+                        open.remove(name)
+                    }
                 }
             }
         }

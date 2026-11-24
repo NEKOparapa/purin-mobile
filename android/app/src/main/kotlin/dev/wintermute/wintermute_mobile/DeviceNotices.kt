@@ -27,7 +27,7 @@ internal object DeviceNotices {
     const val OPEN = "dev.wintermute.OPEN_NOTICE"
     private const val USER_CHANNEL = "agent_reminders"
     private const val JOB = 58210
-    var foreground = false
+    @Volatile var foreground = false
 
     fun enabled(context: Context): Boolean {
         val manager = context.getSystemService(NotificationManager::class.java)

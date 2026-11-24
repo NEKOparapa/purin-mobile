@@ -22,9 +22,9 @@ class ConnectionScreen extends StatelessWidget {
   String _collectionSummary(MobileSession s) {
     if (s.connection == null) return '连接服务后可配置采集项';
     final active = [
-      if (s.collecting) '应用活动',
-      if (s.locationEnabled) '地点',
-      if (s.usageEnabled) '应用时段',
+      if (s.collecting) '前台应用活动',
+      if (s.locationEnabled) '定时位置',
+      if (s.locationEnabled && s.networkEnabled) 'Wi-Fi',
       if (s.screenshots.supported && s.screenshotsEnabled) '截屏',
     ];
     if (active.isEmpty) return '未开启任何采集项';
@@ -284,10 +284,14 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
               _token.text,
               installation: installation,
               name: _name.text,
+              followsSystemName: false,
             )
           : await session.api.pair(
               _pairValue.text,
               installation: installation!,
+              followsSystemName: session.connection == null
+                  ? true
+                  : session.connection!.followsSystemName,
               name:
                   session.connection?.deviceName ??
                   await session.signals.pairingName(),
@@ -712,52 +716,6 @@ class _CollectionSettingsScreen extends StatefulWidget {
 }
 
 class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
-  Future<void> _nameLocation() async {
-    var name = '';
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, update) => AlertDialog(
-          scrollable: true,
-          title: const Text(
-            '命名当前位置',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
-          ),
-          content: TextField(
-            autofocus: true,
-            maxLength: 40,
-            textInputAction: TextInputAction.done,
-            decoration: const InputDecoration(
-              labelText: '地点名称',
-              hintText: '例如：公司',
-              counterText: '',
-            ),
-            onChanged: (text) => update(() => name = text.trim()),
-            onSubmitted: (_) {
-              if (name.isNotEmpty) Navigator.pop(context, name);
-            },
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('取消'),
-            ),
-            FilledButton(
-              onPressed: name.isEmpty
-                  ? null
-                  : () => Navigator.pop(context, name),
-              style: FilledButton.styleFrom(minimumSize: const Size(76, 40)),
-              child: const Text('保存'),
-            ),
-          ],
-        ),
-      ),
-    );
-    if (mounted && result != null) {
-      await widget.session.nameCurrentLocation(result);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final session = widget.session;
@@ -801,16 +759,24 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            SettingsSwitchTile(
-                              title: '记录应用活动',
-                              subtitle: '页面或前后台状态变化时上传。',
-                              value: session.collecting,
-                              onChanged: connected
-                                  ? session.setCollecting
-                                  : null,
+                            _SignalControl(
+                              title: '记录前台应用活动',
+                              description:
+                                  session.screenshots.platform != 'android'
+                                  ? '记录 Wintermute 的页面和前后台切换。'
+                                  : session.usageEnabled &&
+                                        session.usageAccess == 'granted' &&
+                                        !session.backgroundUsage
+                                  ? '记录 Wintermute 活动，其他应用时段会在返回时补传。'
+                                  : '记录 Wintermute 活动，切走其他应用时同步名称、起止时间和停留时长。',
+                              source: 'usage',
+                              enabled: session.collecting,
+                              access: session.usageAccess,
+                              lastObservation: session.lastUsageLabel,
+                              session: session,
                             ),
                             if (session.lastUpload != null ||
-                                session.pending.isNotEmpty ||
+                                session.pendingCollectionCount > 0 ||
                                 session.collectionError != null)
                               Padding(
                                 padding: const EdgeInsets.fromLTRB(
@@ -830,11 +796,11 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                           fontSize: 12,
                                         ),
                                       ),
-                                    if (session.pending.isNotEmpty)
+                                    if (session.pendingCollectionCount > 0)
                                       Padding(
                                         padding: const EdgeInsets.only(top: 2),
                                         child: Text(
-                                          '待上传 ${session.pending.length} 条',
+                                          '待上传 ${session.pendingCollectionCount} 条',
                                           style: TextStyle(
                                             color: colors.onSurfaceVariant,
                                             fontSize: 12.5,
@@ -865,13 +831,23 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _SignalControl(
-                              title: '地点变化',
-                              description: '进入已命名地点时分享名称，其他位置仅分享约 1 公里精度的坐标。',
+                              title: '定时采集位置',
+                              description: '每 20 分钟采集位置和定位误差，由后端筛选并解析地点。',
                               source: 'location',
                               enabled: session.locationEnabled,
                               access: session.locationAccess,
                               lastObservation: session.lastLocationLabel,
                               session: session,
+                            ),
+                            SettingsSwitchTile(
+                              title: '定时采集网络',
+                              subtitle: '随位置记录 Wi-Fi 连接状态和名称。',
+                              value:
+                                  session.locationEnabled &&
+                                  session.networkEnabled,
+                              onChanged: connected && session.locationEnabled
+                                  ? session.setNetworkEnabled
+                                  : null,
                             ),
                             if (session.locationEnabled &&
                                 session.locationAccess == 'granted')
@@ -894,74 +870,18 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                         color: colors.onSurfaceVariant,
                                       ),
                                     ),
-                                    const SizedBox(height: 8),
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 8,
-                                      children: [
-                                        if (!session.backgroundLocation)
-                                          _SubtleActionButton(
-                                            label: '允许后台定位',
-                                            onTap: () =>
-                                                session.requestSignalAccess(
-                                                  'backgroundLocation',
-                                                ),
-                                          ),
-                                        _SubtleActionButton(
-                                          icon: Icons.add_location_alt_outlined,
-                                          label: '命名当前位置',
-                                          onTap: session.canNameLocation
-                                              ? _nameLocation
-                                              : null,
-                                        ),
-                                      ],
-                                    ),
-                                    if (!session.canNameLocation)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 6),
-                                        child: Text(
-                                          '取得近期、精度足够的位置后即可命名。',
-                                          style: TextStyle(
-                                            fontSize: 12,
-                                            color: colors.onSurfaceVariant,
-                                          ),
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            if (session.placeNames.isNotEmpty)
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  20,
-                                  0,
-                                  20,
-                                  16,
-                                ),
-                                child: Wrap(
-                                  spacing: 8,
-                                  runSpacing: 8,
-                                  children: [
-                                    for (final name in session.placeNames)
-                                      ApplePillChip(
-                                        label: name,
-                                        deleteTooltip: '移除地点「$name」',
-                                        onDelete: () =>
-                                            session.removePlace(name),
+                                    if (!session.backgroundLocation)
+                                      _SubtleActionButton(
+                                        label: '允许后台定位',
+                                        onTap: () =>
+                                            session.requestSignalAccess(
+                                              'backgroundLocation',
+                                            ),
                                       ),
                                   ],
                                 ),
                               ),
                           ],
-                        ),
-                        _SignalControl(
-                          title: '其他 App 使用时段',
-                          description: '分享进入前台的应用名称、起止时间和停留时长。',
-                          source: 'usage',
-                          enabled: session.usageEnabled,
-                          access: session.usageAccess,
-                          lastObservation: session.lastUsageLabel,
-                          session: session,
                         ),
                       ],
                     ),
@@ -974,16 +894,18 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               SettingsSwitchTile(
-                                title: '定时截屏',
+                                title: session.screenshots.platform == 'android'
+                                    ? '采集前台应用截图'
+                                    : '定时截屏',
                                 subtitle:
                                     session.screenshotAccess == 'unsupported'
                                     ? '当前安装包不支持系统屏幕共享。'
                                     : session.screenshotAccess ==
                                           'usageRequired'
-                                    ? '先开启「其他 App 使用时段」并授予使用情况访问权。'
+                                    ? '先开启「记录前台应用活动」并授予使用情况访问权。'
                                     : session.screenshots.platform == 'ios'
                                     ? '系统共享屏幕后，在使用其他应用时采集画面并上传。iOS 不提供可靠的应用名称。'
-                                    : '系统共享屏幕后，在使用其他应用时将截图和应用信息发送给 Agent。',
+                                    : '屏幕共享期间，同一应用连续在前台满 10 分钟截一次，切走后随该次活动上传。',
                                 value: session.screenshotsEnabled,
                                 onChanged:
                                     !connected ||
@@ -1010,26 +932,29 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                     crossAxisAlignment:
                                         CrossAxisAlignment.start,
                                     children: [
-                                      Text(
-                                        '截图间隔',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          fontWeight: FontWeight.w500,
-                                          color: atmo.sectionHeader,
+                                      if (session.screenshots.platform !=
+                                          'android') ...[
+                                        Text(
+                                          '截图间隔',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w500,
+                                            color: atmo.sectionHeader,
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(height: 8),
-                                      AppleSegmentedControl<int>(
-                                        items: const [
-                                          (60, '1 分钟'),
-                                          (300, '5 分钟'),
-                                          (900, '15 分钟'),
-                                        ],
-                                        selected: session.screenshotInterval,
-                                        onChanged:
-                                            session.setScreenshotInterval,
-                                      ),
-                                      const SizedBox(height: 10),
+                                        const SizedBox(height: 8),
+                                        AppleSegmentedControl<int>(
+                                          items: const [
+                                            (60, '1 分钟'),
+                                            (300, '5 分钟'),
+                                            (900, '15 分钟'),
+                                          ],
+                                          selected: session.screenshotInterval,
+                                          onChanged:
+                                              session.setScreenshotInterval,
+                                        ),
+                                        const SizedBox(height: 10),
+                                      ],
                                       Row(
                                         children: [
                                           if (session.screenshotAccess ==
@@ -1209,15 +1134,10 @@ class _InlineField extends StatelessWidget {
 }
 
 class _SubtleActionButton extends StatelessWidget {
-  const _SubtleActionButton({
-    required this.label,
-    required this.onTap,
-    this.icon,
-  });
+  const _SubtleActionButton({required this.label, required this.onTap});
 
   final String label;
   final VoidCallback? onTap;
-  final IconData? icon;
 
   @override
   Widget build(BuildContext context) {
@@ -1231,30 +1151,15 @@ class _SubtleActionButton extends StatelessWidget {
         customBorder: const StadiumBorder(),
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 7),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (icon != null) ...[
-                Icon(
-                  icon,
-                  size: 15,
-                  color: enabled
-                      ? colors.primary
-                      : colors.onSurfaceVariant.withValues(alpha: 0.5),
-                ),
-                const SizedBox(width: 5),
-              ],
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: enabled
-                      ? colors.primary
-                      : colors.onSurfaceVariant.withValues(alpha: 0.5),
-                ),
-              ),
-            ],
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: enabled
+                  ? colors.primary
+                  : colors.onSurfaceVariant.withValues(alpha: 0.5),
+            ),
           ),
         ),
       ),
@@ -1285,12 +1190,14 @@ class _SignalControl extends StatelessWidget {
     final needsAccess = enabled && access != 'granted' && !unsupported;
     final systemSettings = access == 'blocked' || access == 'disabled';
     final subtitle = switch (access) {
-      'unsupported' when source == 'usage' => '当前设备不支持。此项适用于 Android。',
+      'unsupported' when source == 'usage' => description,
       'unsupported' => '当前设备不支持地点采集。',
       'disabled' when enabled && source == 'location' => '系统定位服务已关闭。',
       'blocked' when enabled => '需要在系统设置中允许访问。',
       _ when needsAccess =>
-        source == 'usage' ? '等待系统授予使用情况访问权。' : '等待系统授予定位权限。',
+        source == 'usage'
+            ? '正在记录 Wintermute 活动。授权使用情况访问权后，会同时记录其他应用的使用时段。'
+            : '等待系统授予定位权限。',
       _ => description,
     };
     return Column(
@@ -1300,7 +1207,9 @@ class _SignalControl extends StatelessWidget {
           title: title,
           subtitle: subtitle,
           value: enabled,
-          onChanged: session.connection == null || (unsupported && !enabled)
+          onChanged:
+              session.connection == null ||
+                  (unsupported && source != 'usage' && !enabled)
               ? null
               : (value) => session.setSignalEnabled(source, value),
         ),

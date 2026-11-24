@@ -4,9 +4,19 @@ import android.Manifest
 import android.app.Activity
 import android.app.AppOpsManager
 import android.content.Context
+import android.os.Build
+import android.provider.Settings
 import java.util.concurrent.Executors
 
-internal class MobileSignals private constructor(context: Context) {
+internal fun Context.systemDeviceName(): String? = try {
+    Settings.Global.getString(contentResolver, Settings.Global.DEVICE_NAME)
+        ?.filterNot { it.isISOControl() }?.trim()?.takeIf { it.isNotEmpty() }
+        ?.let { it.substring(0, it.offsetByCodePoints(0, minOf(80, it.codePointCount(0, it.length)))) }
+} catch (_: SecurityException) {
+    null
+}
+
+internal class MobileSignals private constructor(private val context: Context) {
     val store = SignalStore(context)
     val location = LocationCapture(context, store)
     val usage = UsageCapture(context, store)
@@ -21,7 +31,10 @@ internal class MobileSignals private constructor(context: Context) {
             val allowed = usage.granted()
             execute {
                 store.transaction {
-                    if (!allowed) screenshots.stopAndClear()
+                    if (!allowed) {
+                        screenshots.stopAndClear()
+                        UsageService.configure(context, false, locationAllowed())
+                    }
                     if (store["usage"] == "true" && (!allowed || store["usageCursor"] == null)) {
                         usage.reset(allowed)
                     }
@@ -40,11 +53,23 @@ internal class MobileSignals private constructor(context: Context) {
                 !activity.shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) -> "blocked"
             else -> "denied"
         }
-        return mapOf("location" to locationStatus, "usage" to if (usage.granted()) "granted" else "denied",
-            "backgroundLocation" to location.background())
+        return buildMap {
+            context.systemDeviceName()?.let { put("systemDeviceName", it) }
+            put("deviceModel", Build.MODEL)
+            put("location", locationStatus)
+            put("usage", if (usage.granted()) "granted" else "denied")
+            put("backgroundLocation", location.background())
+            if (locationAllowed()) store["locationLatest"]?.let { put("locationLatest", it) }
+            if (usageAllowed()) {
+                store["usageLatest"]?.let { put("usageLatest", it) }
+                store["usageUploadedAt"]?.toLongOrNull()?.let { put("usageUploadedAt", it) }
+                put("usageServiceRunning", UsageService.running)
+                if (UsageService.running) put("usagePending", store.pendingUsage())
+            }
+        }
     }
 
-    fun configure(scope: String, wantLocation: Boolean, wantUsage: Boolean) {
+    fun configure(scope: String, wantLocation: Boolean, wantUsage: Boolean, wantNetwork: Boolean) {
         require(scope.isNotBlank() || (!wantLocation && !wantUsage))
         store.transaction {
             val newScope = scope != store["scope"]
@@ -53,12 +78,18 @@ internal class MobileSignals private constructor(context: Context) {
             if (newScope || (store["location"] == "true") != wantLocation) {
                 location.reset(wantLocation && location.granted())
             }
+            store["network"] = (wantLocation && wantNetwork).toString()
             store["scope"] = scope
             store["location"] = wantLocation.toString()
             store["usage"] = wantUsage.toString()
             reconcile()
         }
+        UsageService.configure(context, usageAllowed(), locationAllowed())
     }
+
+    fun locationAllowed() = store["location"] == "true" && location.granted() && location.enabled()
+
+    fun usageAllowed() = store["usage"] == "true" && usage.granted()
 
     private fun reconcile() {
         if (store["usage"] == "true") {
@@ -75,6 +106,9 @@ internal class MobileSignals private constructor(context: Context) {
     fun read(scope: String): List<Map<String, Any>> = store.transaction {
         if (scope != store["scope"]) return@transaction emptyList()
         reconcile()
+        // Keep new usage spans in SQLite until the service gets the HTTP receipt,
+        // including when the Activity pauses or is destroyed mid-upload.
+        if (UsageService.running) return@transaction emptyList()
         if (store["usage"] == "true" && usage.granted()) usage.collect(System.currentTimeMillis())
         store.batch()
     }

@@ -41,6 +41,12 @@ class MobileScreenshots {
   Future<Uint8List?> bytes(String scope, String id) =>
       _channel.invokeMethod<Uint8List>('bytes', {'scope': scope, 'id': id});
 
+  Future<Json?> visitFrame(String scope, String id) =>
+      _channel.invokeMapMethod<String, dynamic>('visitFrame', {
+        'scope': scope,
+        'id': id,
+      });
+
   Future<void> ack(String scope, String id) =>
       _channel.invokeMethod<void>('ack', {
         'scope': scope,

@@ -39,14 +39,17 @@ class ScreenshotService : Service() {
     private var display: VirtualDisplay? = null
     private var reader: ImageReader? = null
     private var token: String? = null
-    private var completedAt = 0L
+    private val timer = VisitScreenshotTimer()
     private var taking = false
     private var visible = true
     private val callback = object : MediaProjection.Callback() {
         override fun onStop() { stopProjection() }
         override fun onCapturedContentVisibilityChanged(isVisible: Boolean) {
             visible = isVisible
-            if (!isVisible) releaseSurface()
+            if (!isVisible) {
+                timer.reset()
+                releaseSurface()
+            }
         }
         // The framework also reports the current size each time a surface attaches.
         // A device rotation is handled by onConfigurationChanged and the next sample.
@@ -54,7 +57,7 @@ class ScreenshotService : Service() {
     private val tick = object : Runnable {
         override fun run() {
             if (projection == null) return
-            if (SystemClock.elapsedRealtime() - completedAt >= shots.intervalMs && !taking && usable()) capture()
+            if (!usable()) timer.reset() else if (!taking) pollVisit()
             main.postDelayed(this, 2000)
         }
     }
@@ -93,7 +96,7 @@ class ScreenshotService : Service() {
             display = session.createVirtualDisplay("Wintermute", width, height, resources.displayMetrics.densityDpi,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, null, null, main)
             shots.activeGeneration = next
-            completedAt = SystemClock.elapsedRealtime() - shots.intervalMs
+            timer.reset()
             main.post(tick)
             shots.changed()
         } catch (_: RuntimeException) {
@@ -114,13 +117,18 @@ class ScreenshotService : Service() {
         return Pair(maxOf(2, (size.x * scale).roundToInt()), maxOf(2, (size.y * scale).roundToInt()))
     }
 
-    private fun capture() {
+    private fun pollVisit() {
         val generation = token ?: return
         taking = true
         signals.execute {
             val app = currentApp()
             main.post {
-                if (app == null || !usable() || token != generation || display == null) {
+                if (!usable() || token != generation || display == null) {
+                    timer.reset()
+                    taking = false
+                    return@post
+                }
+                if (!timer.due(app?.id, SystemClock.elapsedRealtime()) || app == null) {
                     taking = false
                     return@post
                 }
@@ -137,7 +145,6 @@ class ScreenshotService : Service() {
                             releaseSurface()
                         }
                         if (bitmap != null) {
-                            completedAt = SystemClock.elapsedRealtime()
                             signals.execute {
                                 try {
                                     if (shots.generation == generation && usable() && currentApp() == app) {
@@ -197,7 +204,7 @@ class ScreenshotService : Service() {
         val stop = PendingIntent.getService(this, 1, Intent(this, ScreenshotService::class.java).setAction(STOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         return builder.setSmallIcon(android.R.drawable.ic_menu_camera)
-            .setContentTitle("Wintermute 正在定时截图").setContentText("记录其他应用的前台画面")
+            .setContentTitle("Wintermute 正在采集前台应用截图").setContentText("同一应用连续停留 10 分钟后截取一次")
             .setOngoing(true).addAction(android.R.drawable.ic_menu_close_clear_cancel, "停止共享", stop).build()
     }
 

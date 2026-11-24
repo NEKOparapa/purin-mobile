@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart'
     show ChangeNotifier, ThemeMode, ValueNotifier;
 import 'agent_api.dart';
@@ -108,6 +109,7 @@ class MobileSession extends ChangeNotifier {
   }
 
   Connection? connection;
+  String? _systemDeviceName, _deviceModel;
   var _history = ChatHistory();
   bool get chatHistoryLoaded => _history.loaded;
   List<Json> _serverMessages = [];
@@ -142,21 +144,17 @@ class MobileSession extends ChangeNotifier {
 
   List<Json> pending = [];
   bool collecting = false;
-  bool locationEnabled = false, usageEnabled = false;
+  bool locationEnabled = false;
+  bool networkEnabled = false;
+  bool get usageEnabled => collecting && screenshots.platform == 'android';
   String locationAccess = 'unsupported', usageAccess = 'unsupported';
   bool backgroundLocation = false;
+  bool backgroundUsage = false;
+  int _pendingUsage = 0;
+  int get pendingCollectionCount => pending.length + _pendingUsage;
   String? signalError;
-  var _timeline = MobileTimeline({});
   final _unacknowledged = <String>{};
-  String? get lastLocationLabel => _timeline.lastLocationLabel;
-  String? get lastUsageLabel => _timeline.lastUsageLabel;
-  bool get canNameLocation =>
-      locationEnabled &&
-      locationAccess == 'granted' &&
-      _timeline.canNameLocation;
-  List<String> get placeNames => [
-    for (final p in _timeline.places) p['name'] as String,
-  ];
+  String? lastLocationLabel, lastUsageLabel;
   bool ready = false;
   String? error;
   String? collectionError;
@@ -188,6 +186,13 @@ class MobileSession extends ChangeNotifier {
   }
 
   Future<void> initialize() async {
+    signals.onLocationReady(
+      () => _run(() async {
+        if (!ready || connection == null || !locationEnabled) return;
+        await _readSignals();
+        await _flushCollection();
+      }),
+    );
     screenshots.onChange(
       () => unawaited(
         _run(() async {
@@ -208,6 +213,7 @@ class MobileSession extends ChangeNotifier {
               saved.token,
               installation: installation,
               name: saved.deviceName,
+              followsSystemName: saved.followsSystemName,
             );
             await store.saveConnection(saved);
           }
@@ -236,6 +242,14 @@ class MobileSession extends ChangeNotifier {
     outbox.removeWhere(
       (event) => event['path'] == 'slices' && event['source'] != 'usage',
     );
+    var migratedUsage = false;
+    for (final event in outbox) {
+      if (event['path'] == 'slices' && event['source'] == 'usage') {
+        event['body'] = AppUsage.migrateSlice(event['body'] as Json);
+        event['path'] = AppUsage.path;
+        migratedUsage = true;
+      }
+    }
     _history = ChatHistory();
     _serverMessages = [];
     _outgoing = List<Json>.from(saved['outgoing'] ?? saved['messages'] ?? [])
@@ -256,16 +270,20 @@ class MobileSession extends ChangeNotifier {
       saved['terminalTools'] as Json? ?? {},
       connectors.platform,
     );
-    collecting = saved['collecting'] == true;
+    collecting =
+        saved['foregroundActivityEnabled'] as bool? ??
+        (saved['collecting'] == true || saved['usageEnabled'] == true);
     locationEnabled = saved['locationEnabled'] == true;
-    usageEnabled = saved['usageEnabled'] == true;
+    networkEnabled = saved['networkEnabled'] == true;
     screenshotsEnabled = saved['screenshotsEnabled'] == true;
     final interval = saved['screenshotInterval'];
     screenshotInterval = MobileScreenshots.intervals.contains(interval)
         ? interval as int
         : 300;
     screenshotError = null;
-    _timeline = MobileTimeline(saved['timeline'] ?? {});
+    lastUsageLabel =
+        saved['lastUsageLabel'] ?? saved['timeline']?['lastUsageLabel'];
+    lastLocationLabel = saved['locationFixLabel'];
     _unacknowledged
       ..clear()
       ..addAll(List<String>.from(saved['nativeReceipts'] ?? []));
@@ -275,7 +293,14 @@ class MobileSession extends ChangeNotifier {
     questions = [];
     connection = value;
     inbox.connect(value);
-    if (saved.containsKey('messages') || outbox.length != queued) await _save();
+    if (saved.containsKey('timeline') ||
+        saved.containsKey('messages') ||
+        outbox.length != queued ||
+        migratedUsage ||
+        saved.containsKey('collecting') ||
+        saved.containsKey('usageEnabled')) {
+      await _save();
+    }
     await _refreshSignals();
     await _configureScreenshots();
   }
@@ -302,12 +327,13 @@ class MobileSession extends ChangeNotifier {
     'outgoing': _outgoing.where((entry) => entry['event_id'] == null).toList(),
     'pending': pending,
     'terminalTools': _tools.toJson(),
-    'collecting': collecting,
+    'foregroundActivityEnabled': collecting,
     'locationEnabled': locationEnabled,
-    'usageEnabled': usageEnabled,
+    'networkEnabled': networkEnabled,
     'screenshotsEnabled': screenshotsEnabled,
     'screenshotInterval': screenshotInterval,
-    'timeline': _timeline.toJson(),
+    'lastUsageLabel': lastUsageLabel,
+    'locationFixLabel': lastLocationLabel,
     'nativeReceipts': _unacknowledged.toList(),
     'lastActivity': lastActivity,
     'lastUpload': lastUpload,
@@ -486,8 +512,8 @@ class MobileSession extends ChangeNotifier {
         try {
           await _refreshChat(conn);
           await _refreshQuestions(conn);
-          final inbox = await api.request(conn, 'outputs?limit=100');
-          for (final row in (inbox['outputs'] as List).cast<Json>()) {
+          final outputs = await api.request(conn, 'outputs?limit=100');
+          for (final row in (outputs['outputs'] as List).cast<Json>()) {
             if (row['status'] == 'pending' &&
                 _serverMessages.any(
                   (m) =>
@@ -499,6 +525,18 @@ class MobileSession extends ChangeNotifier {
                 body: {},
               );
             }
+          }
+          final systemName = _systemDeviceName;
+          final updated = systemName == null
+              ? null
+              : conn.withSystemName(systemName, _deviceModel);
+          if (updated != null) {
+            if (updated.deviceName != conn.deviceName) {
+              await api.request(updated, 'devices/self', body: {});
+            }
+            await store.saveConnection(updated);
+            connection = updated;
+            inbox.connection = updated;
           }
           error = null;
         } finally {
@@ -565,39 +603,45 @@ class MobileSession extends ChangeNotifier {
     if (changed) await _save();
   }
 
-  Future<void> setCollecting(bool enabled) => _run(() async {
-    if (connection == null) return;
-    collecting = enabled;
-    lastActivity = null;
-    if (!enabled) {
-      pending.removeWhere(
-        (event) =>
-            event['path'] == 'perceptions' &&
-            event['body']?['state_key'] == 'mobile.app_activity',
-      );
-      collectionError = null;
-    }
-    await _save();
-    if (enabled) await _recordActivity(_activity, DateTime.now().toUtc());
-  });
-
   Future<void> _refreshSignals() async {
     try {
       final status = await signals.configure(
         connection?.scope ?? '',
         locationEnabled,
         usageEnabled,
+        network: networkEnabled,
       );
       locationAccess = status['location'] ?? 'unsupported';
+      _systemDeviceName = status['systemDeviceName'] as String?;
+      _deviceModel = status['deviceModel'] as String?;
       usageAccess = status['usage'] ?? 'unsupported';
       backgroundLocation = status['backgroundLocation'] == true;
+      backgroundUsage = status['usageServiceRunning'] == true;
+      _pendingUsage = status['usagePending'] as int? ?? 0;
+      if (status['locationLatest'] case final String raw) {
+        final fix = LocationFix.fromRecord(jsonDecode(raw) as Json);
+        if (fix != null) lastLocationLabel = '定位误差约 ${fix.accuracy.ceil()} 米';
+      }
+      if (usageEnabled && usageAccess == 'granted') {
+        if (status['usageLatest'] case final String latest) {
+          final usage = AppUsage.fromRecord(jsonDecode(latest) as Json);
+          if (usage != null) lastUsageLabel = usage.description;
+        }
+        if (status['usageUploadedAt'] case final int millis) {
+          final uploaded = DateTime.fromMillisecondsSinceEpoch(millis);
+          final previous = DateTime.tryParse(lastUpload ?? '');
+          if (previous == null || uploaded.isAfter(previous)) {
+            lastUpload = uploaded.toIso8601String();
+          }
+        }
+      }
       // Reconcile with OS revocation before any upload, including a restart offline.
       final count = pending.length;
       bool changed = false;
       if (locationAccess != 'granted' && locationAccess != 'disabled') {
         pending.removeWhere((e) => e['source'] == 'location');
-        if (_timeline.lastLocationLabel != null) {
-          _timeline.forgetLocation();
+        if (lastLocationLabel != null) {
+          lastLocationLabel = null;
           changed = true;
         }
       }
@@ -611,18 +655,34 @@ class MobileSession extends ChangeNotifier {
     } catch (e) {
       locationAccess = usageAccess = 'unknown';
       backgroundLocation = false;
+      backgroundUsage = false;
+      _pendingUsage = 0;
       signalError = '无法读取系统采集状态：$e';
     }
   }
+
+  Future<void> setNetworkEnabled(bool enabled) => _run(() async {
+    if (connection == null || (enabled && !locationEnabled)) return;
+    networkEnabled = enabled;
+    await _save();
+    await _refreshSignals();
+  });
 
   Future<void> setSignalEnabled(String source, bool enabled) => _run(() async {
     if (connection == null || !['usage', 'location'].contains(source)) return;
     if (source == 'location') {
       locationEnabled = enabled;
-      if (!enabled) _timeline.forgetLocation();
+      if (!enabled) lastLocationLabel = null;
     } else {
-      usageEnabled = enabled;
-      if (!enabled) _timeline.lastUsageLabel = null;
+      collecting = enabled;
+      lastActivity = null;
+      if (!enabled) {
+        lastUsageLabel = null;
+        collectionError = null;
+        pending.removeWhere(
+          (e) => e['body']?['state_key'] == 'mobile.app_activity',
+        );
+      }
       if (!enabled && screenshots.platform == 'android' && screenshotsEnabled) {
         screenshotsEnabled = false;
         _cancelScreenshotUpload();
@@ -633,6 +693,9 @@ class MobileSession extends ChangeNotifier {
     await _refreshSignals();
     if (source == 'usage') await _configureScreenshots();
     if (!enabled) return;
+    if (source == 'usage') {
+      await _recordActivity(_activity, DateTime.now().toUtc());
+    }
     final access = source == 'location' ? locationAccess : usageAccess;
     if (access == 'denied') await _requestSignal(source);
     await _readSignals();
@@ -797,41 +860,6 @@ class MobileSession extends ChangeNotifier {
     }
   });
 
-  Future<void> nameCurrentLocation(String name) => _run(() async {
-    if (connection == null || !canNameLocation) return;
-    try {
-      _timeline.nameLocation(name);
-      final label = _timeline.currentPlaceUpdate();
-      if (label != null) {
-        _queueLocation(newEventId(), DateTime.now().toUtc(), label);
-      }
-      signalError = null;
-      await _save();
-      await _flushCollection();
-    } on FormatException catch (e) {
-      signalError = e.message;
-    }
-  });
-
-  Future<void> removePlace(String name) => _run(() async {
-    if (connection == null) return;
-    _timeline.removePlace(name);
-    await _save();
-  });
-
-  void _queueLocation(String id, DateTime at, String value) {
-    pending.add({
-      'source': 'location',
-      'path': 'perceptions',
-      'body': {
-        'event_id': id,
-        'occurred_at': at.toIso8601String(),
-        'state_key': 'mobile.location',
-        'value': value,
-      },
-    });
-  }
-
   Future<void> _readSignals() async {
     final scope = connection?.scope;
     final location = locationEnabled && locationAccess == 'granted';
@@ -842,25 +870,54 @@ class MobileSession extends ChangeNotifier {
       if (rows.isEmpty && _unacknowledged.isEmpty) return;
       for (final row in rows) {
         final id = row['id'] as String;
-        if (!_unacknowledged.add(id)) continue;
+        if (_unacknowledged.contains(id)) continue;
+        if (row['hasVisitScreenshot'] == true) {
+          if (!usage || !screenshotsEnabled) continue;
+          final observation = AppUsage.fromRecord(row);
+          final frame = await screenshots.visitFrame(scope, id);
+          final conn = connection;
+          if (frame == null ||
+              observation == null ||
+              conn == null ||
+              conn.scope != scope ||
+              !screenshotsEnabled) {
+            continue;
+          }
+          final receipt = await api.uploadAppVisit(
+            conn,
+            observation.perception,
+            frame,
+          );
+          if (receipt['event_id'] is! String) {
+            throw const FormatException('截图缺少活动回执');
+          }
+          lastUsageLabel = observation.description;
+          _unacknowledged.add(id);
+          continue;
+        }
+        _unacknowledged.add(id);
         final at = DateTime.fromMillisecondsSinceEpoch(
           row['at'] as int,
           isUtc: true,
         );
         if (location && row['source'] == 'location') {
-          final text = _timeline.location(row, at);
-          if (text != null) _queueLocation(id, at, text);
+          final fix = LocationFix.fromRecord(row);
+          if (fix != null) {
+            lastLocationLabel = '定位误差约 ${fix.accuracy.ceil()} 米';
+            pending.add({
+              'source': 'location',
+              'path': 'perceptions',
+              'body': fix.perception(id, at),
+            });
+          }
         } else if (usage && row['source'] == 'usage') {
-          final text = _timeline.usage(row);
-          if (text != null) {
+          final observation = AppUsage.fromRecord(row);
+          if (observation != null) {
+            lastUsageLabel = observation.description;
             pending.add({
               'source': 'usage',
-              'path': 'slices',
-              'body': {
-                'event_id': id,
-                'occurred_at': at.toIso8601String(),
-                'text': text,
-              },
+              'path': AppUsage.path,
+              'body': observation.perception,
             });
           }
         }
@@ -936,6 +993,7 @@ class MobileSession extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    signals.onLocationReady(null);
     screenshots.onChange(null);
     _cancelScreenshotUpload();
     _timer?.cancel();

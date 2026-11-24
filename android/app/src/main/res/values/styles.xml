@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="launcher_background">#191115</color>
     <color name="wintermute_canvas">#FBF9F5</color>
     <color name="wintermute_accent">#975239</color>
     <color name="wintermute_on_accent">#FFFFFF</color>

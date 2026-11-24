@@ -1,10 +1,20 @@
 import 'dart:io';
-import 'dart:math' as math;
 import 'package:flutter/services.dart';
 import 'agent_api.dart';
 
 class MobileSignals {
   static const _channel = MethodChannel('dev.wintermute/mobile_signals');
+  void onLocationReady(Future<void> Function()? handler) {
+    if (!Platform.isIOS) return;
+    _channel.setMethodCallHandler(
+      handler == null
+          ? null
+          : (call) async {
+              if (call.method == 'locationReady') await handler();
+            },
+    );
+  }
+
   Future<String> pairingName() async {
     try {
       final value = await _channel.invokeMethod<String>('deviceName');
@@ -30,11 +40,21 @@ class MobileSignals {
 
   bool get _mobile => Platform.isAndroid || Platform.isIOS;
 
-  Future<Json> configure(String scope, bool location, bool usage) async {
+  Future<Json> configure(
+    String scope,
+    bool location,
+    bool usage, {
+    bool network = false,
+  }) async {
     if (!_mobile) return unavailable;
     final result = await _channel.invokeMapMethod<String, dynamic>(
       'configure',
-      {'scope': scope, 'location': location, 'usage': usage},
+      {
+        'scope': scope,
+        'location': location,
+        'usage': usage,
+        'network': location && network,
+      },
     );
     return result ?? unavailable;
   }
@@ -56,15 +76,23 @@ class MobileSignals {
       _channel.invokeMethod<void>('ack', {'scope': scope, 'ids': ids});
 }
 
-class _Position {
-  _Position(this.lat, this.lon, this.accuracy, this.at);
-  final double lat, lon, accuracy;
-  final DateTime at;
+class LocationFix {
+  LocationFix(
+    this.latitude,
+    this.longitude,
+    this.accuracy,
+    this.kind,
+    this.wifi,
+  );
+  final double latitude, longitude, accuracy;
+  final String kind;
+  final Json? wifi;
 
-  static _Position? from(Json record, DateTime at) {
+  static LocationFix? fromRecord(Json record) {
     final lat = record['lat'],
         lon = record['lon'],
         accuracy = record['accuracy'];
+    final kind = record['kind'] ?? 'fix';
     if (lat is! num ||
         lon is! num ||
         accuracy is! num ||
@@ -73,158 +101,143 @@ class _Position {
         !accuracy.isFinite ||
         lat.abs() > 90 ||
         lon.abs() > 180 ||
-        accuracy < 0) {
+        accuracy < 0 ||
+        !const {'fix', 'arrival', 'departure'}.contains(kind)) {
       return null;
     }
-    return _Position(lat.toDouble(), lon.toDouble(), accuracy.toDouble(), at);
+    return LocationFix(
+      lat.toDouble(),
+      lon.toDouble(),
+      accuracy.toDouble(),
+      kind as String,
+      ifWifi(record),
+    );
   }
 
-  double distanceTo(Json place) {
-    const radians = math.pi / 180;
-    final a =
-        math.pow(math.sin((place['lat'] - lat) * radians / 2), 2) +
-        math.cos(lat * radians) *
-            math.cos(place['lat'] * radians) *
-            math.pow(math.sin((place['lon'] - lon) * radians / 2), 2);
-    return 12742000 * math.asin(math.sqrt(a.clamp(0, 1)));
+  static Json? ifWifi(Json row) {
+    final state = row['wifiState'];
+    if (!const {'connected', 'disconnected', 'unknown'}.contains(state)) {
+      return null;
+    }
+    return {
+      'state': state,
+      if (state == 'connected' && row['wifiSsid'] is String)
+        'ssid': row['wifiSsid'],
+    };
   }
-}
 
-/// Reduces raw fixes on the phone. Only named places or rounded areas leave it.
-class MobileTimeline {
-  MobileTimeline(Json saved)
-    : places = List<Json>.from(saved['places'] ?? []),
-      lastArea = saved['lastArea'],
-      lastPlace = saved['lastPlace'],
-      lastLocationLabel = saved['lastLocationLabel'],
-      lastUsageLabel = saved['lastUsageLabel'],
-      _locationAt = saved['locationAt'] ?? 0;
-
-  final List<Json> places;
-  String? lastArea, lastPlace, lastLocationLabel, lastUsageLabel;
-  int _locationAt;
-  _Position? _current;
-  static const _radius = 250;
-
-  Json toJson() => {
-    'places': places,
-    'lastArea': lastArea,
-    'lastPlace': lastPlace,
-    'locationAt': _locationAt,
-    'lastLocationLabel': lastLocationLabel,
-    'lastUsageLabel': lastUsageLabel,
+  Json perception(String id, DateTime at) => {
+    'event_id': id,
+    'occurred_at': at.toUtc().toIso8601String(),
+    'state_key': 'mobile.location',
+    'value': value,
   };
 
-  bool get canNameLocation {
-    final fix = _current;
-    if (fix == null || fix.accuracy > _radius) return false;
-    final age = DateTime.now().difference(fix.at);
-    return !age.isNegative && age < const Duration(minutes: 15);
-  }
+  Json get value => {
+    'latitude': latitude,
+    'longitude': longitude,
+    'accuracy_m': accuracy,
+    if (wifi != null) 'wifi': wifi,
+    'coordinate_system': 'wgs84',
+    'kind': kind,
+  };
+}
 
-  void forgetLocation() {
-    _current = null;
-    lastArea = lastPlace = lastLocationLabel = null;
-    _locationAt = 0;
-  }
+class AppUsage {
+  AppUsage(
+    this.id,
+    this.app,
+    this.start,
+    this.end,
+    this.seconds, {
+    this.isHomeApp,
+    this.deviceName,
+  });
 
-  void nameLocation(String input) {
-    final name = input.trim();
-    if (!canNameLocation) {
-      throw const FormatException('需要最近 15 分钟内、精度在 250 米以内的位置');
-    }
-    if (name.isEmpty || name.length > 40 || name.contains(RegExp(r'[\r\n]'))) {
-      throw const FormatException('请输入 1 至 40 字的地点名称');
-    }
-    places.removeWhere((p) => p['name'] == name);
-    places.add({'name': name, 'lat': _current!.lat, 'lon': _current!.lon});
-  }
+  static const path = 'perceptions';
+  static const stateKey = 'mobile.app_usage';
+  final String id, app;
+  final DateTime start, end;
+  final int seconds;
+  final bool? isHomeApp;
+  final String? deviceName;
 
-  void removePlace(String name) {
-    places.removeWhere((p) => p['name'] == name);
-    if (lastPlace == name) {
-      lastArea = lastPlace = lastLocationLabel = null;
-    }
-  }
-
-  String? _near(_Position point, bool historical) {
-    if (point.accuracy > _radius) return null;
-    String? nearest;
-    double best = double.infinity;
-    for (final place in places) {
-      final distance = point.distanceTo(place);
-      final retained = !historical && place['name'] == lastPlace;
-      final threshold = retained ? _radius + point.accuracy : _radius;
-      if (distance <= threshold && distance <= best) {
-        nearest = place['name'] as String;
-        best = distance;
-      }
-    }
-    return nearest;
-  }
-
-  String? currentPlaceUpdate() {
-    if (!canNameLocation) return null;
-    return _location(_current!, 'fix');
-  }
-
-  String? location(Json record, DateTime at) {
-    final point = _Position.from(record, at);
-    if (point == null) return null;
-    return _location(point, record['kind'] as String? ?? 'fix');
-  }
-
-  String? _location(_Position point, String kind) {
-    final time = point.at.millisecondsSinceEpoch;
-    final historical = time < _locationAt;
-    final name = _near(point, historical);
-    // Ignore a coarse fix whose uncertainty still overlaps the previous place.
-    if (kind == 'fix' && lastPlace != null && point.accuracy > _radius) {
-      for (final place in places) {
-        if (place['name'] == lastPlace &&
-            point.distanceTo(place) <= _radius + point.accuracy) {
-          if (!historical) _current = point;
-          return null;
-        }
-      }
-    }
-    final area =
-        '${point.lat.toStringAsFixed(2)}, ${point.lon.toStringAsFixed(2)}';
-    final uncertainty = point.accuracy > 1000
-        ? '（定位误差约 ${(point.accuracy / 1000).ceil()} 公里）'
-        : '';
-    final where = name == null ? '约 $area$uncertainty' : '「$name」';
-    if (historical) {
-      if (kind == 'fix') return null;
-      return kind == 'departure' ? '离开$where' : '到达$where';
-    }
-    _locationAt = time;
-    if (kind == 'departure') {
-      _current = null;
-      lastArea = lastPlace = null;
-      return lastLocationLabel = '离开$where';
-    }
-    _current = point;
-    if (name == lastPlace && (name != null || area == lastArea)) return null;
-    final previous = lastPlace;
-    lastPlace = name;
-    lastArea = area;
-    final next = name != null || kind == 'arrival' ? '到达$where' : '所在区域$where';
-    return lastLocationLabel = previous == null ? next : '离开「$previous」，$next';
-  }
-
-  String? usage(Json record) {
-    final start = record['start'], end = record['end'];
+  static AppUsage? fromRecord(Json record) {
+    final id = record['id'], start = record['start'], end = record['end'];
+    if (id is! String || id.isEmpty) return null;
     if (start is! int || end is! int || end <= start) return null;
     final label = (record['label'] as String?)?.trim();
     final app = label == null || label.isEmpty ? record['package'] : label;
     if (app is! String || app.isEmpty) return null;
-    String utc(int millis) => DateTime.fromMillisecondsSinceEpoch(
-      millis,
-      isUtc: true,
-    ).toIso8601String().replaceAll('T', ' ').substring(0, 19);
-    final seconds = ((end - start) / 1000).round();
-    return lastUsageLabel =
-        '手机前台使用「$app」，${utc(start)} 至 ${utc(end)}（UTC），约 $seconds 秒。';
+    return AppUsage(
+      id,
+      app,
+      DateTime.fromMillisecondsSinceEpoch(start, isUtc: true),
+      DateTime.fromMillisecondsSinceEpoch(end, isUtc: true),
+      ((end - start) / 1000).round(),
+      isHomeApp: record['isHomeApp'] as bool?,
+      deviceName: record['deviceName'] as String?,
+    );
+  }
+
+  String get description {
+    String utc(DateTime time) =>
+        time.toIso8601String().replaceFirst('T', ' ').substring(0, 19);
+    return '手机前台使用「$app」，${utc(start)} 至 ${utc(end)}（UTC），约 $seconds 秒。';
+  }
+
+  Json get perception => {
+    // Receipts are unique across layers. A lost receipt from an older slice
+    // must not collide with a perception for the same native interval.
+    'event_id': 'app-usage:$id',
+    'occurred_at': end.toIso8601String(),
+    'state_key': stateKey,
+    'value': {
+      'activity_id': id,
+      'foreground_app': app,
+      'device_platform': 'android',
+      if (deviceName != null) 'device_name': deviceName,
+      if (isHomeApp != null) 'is_home_app': isHomeApp,
+      // The previous durable outbox retained the start only to whole seconds.
+      // Use the same precision so either copy produces an identical retry.
+      'started_at': DateTime.utc(
+        start.year,
+        start.month,
+        start.day,
+        start.hour,
+        start.minute,
+        start.second,
+      ).toIso8601String(),
+      'ended_at': end.toIso8601String(),
+      'duration_seconds': seconds,
+    },
+  };
+
+  static final _oldText = RegExp(
+    r'^手机前台使用「(.+)」，(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) 至 \d{4}-\d\d-\d\d \d\d:\d\d:\d\d（UTC），约 (\d+) 秒。$',
+    dotAll: true,
+  );
+
+  static Json migrateSlice(Json body) {
+    final text = body['text'] as String;
+    final match = _oldText.firstMatch(text);
+    final start = match == null ? null : DateTime.tryParse('${match[2]}Z');
+    final end = DateTime.tryParse(body['occurred_at'] as String);
+    if (match != null && start != null && end != null) {
+      return AppUsage(
+        body['event_id'],
+        match[1]!,
+        start,
+        end.toUtc(),
+        int.parse(match[3]!),
+      ).perception;
+    }
+    // Keep the original observation even if it predates the structured text format.
+    return {
+      'event_id': 'app-usage:${body['event_id']}',
+      'occurred_at': body['occurred_at'],
+      'state_key': stateKey,
+      'value': text,
+    };
   }
 }

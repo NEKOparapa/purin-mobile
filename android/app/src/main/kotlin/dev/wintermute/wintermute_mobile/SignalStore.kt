@@ -60,17 +60,29 @@ internal class SignalStore(context: Context) : SQLiteOpenHelper(context, "mobile
         writableDatabase.insertOrThrow("records", null, row)
     }
 
-    fun batch(): List<Map<String, Any>> =
-        readableDatabase.rawQuery("SELECT body FROM records ORDER BY at,rowid LIMIT 128", null).use { cursor ->
+    fun pendingUsage(): Int = readableDatabase.rawQuery(
+        "SELECT COUNT(*) FROM records WHERE source='usage'", null
+    ).use { it.moveToFirst(); it.getInt(0) }
+
+    fun batch(source: String? = null, limit: Int = 128): List<Map<String, Any>> {
+        return readableDatabase.query("records", arrayOf("body",
+            "EXISTS(SELECT 1 FROM screenshots s WHERE s.id='visit:' || records.id)"),
+            source?.let { "source=?" }, source?.let { arrayOf(it) },
+            null, null, "at,rowid", limit.toString()).use { cursor ->
             buildList {
                 while (cursor.moveToNext()) {
                     val record = JSONObject(cursor.getString(0))
+                    if (cursor.getInt(1) != 0) record.put("hasVisitScreenshot", true)
                     add(record.keys().asSequence().associateWith { record.get(it) })
                 }
             }
         }
+    }
 
     fun ack(ids: List<String>) {
-        for (id in ids) writableDatabase.delete("records", "id=?", arrayOf(id))
+        for (id in ids) {
+            writableDatabase.delete("records", "id=?", arrayOf(id))
+            writableDatabase.delete("screenshots", "id=?", arrayOf("visit:$id"))
+        }
     }
 }

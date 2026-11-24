@@ -1,4 +1,6 @@
 import CoreLocation
+import Network
+import SystemConfiguration.CaptiveNetwork
 import Flutter
 import UIKit
 
@@ -10,10 +12,9 @@ final class MobileSignals: NSObject, CLLocationManagerDelegate {
     var generation = UUID().uuidString
     var since = Date()
     var awaitingAuthorization = false
-    var visitsSince: Date?
+    var lastSample: Date?
+    var network: Bool?
     var records: [Record] = []
-    // iOS may report the same arrival again when the visit ends.
-    var recentVisitIDs: [String] = []
   }
 
   private struct Record: Codable {
@@ -23,10 +24,15 @@ final class MobileSignals: NSObject, CLLocationManagerDelegate {
     let lon: Double
     let accuracy: Double
     let kind: String
+    var wifiState: String?
+    var wifiSsid: String?
 
     var message: [String: Any] {
-      ["source": "location", "id": id, "at": at, "lat": lat,
+      var result: [String: Any] = ["source": "location", "id": id, "at": at, "lat": lat,
        "lon": lon, "accuracy": accuracy, "kind": kind]
+      result["wifiState"] = wifiState
+      result["wifiSsid"] = wifiSsid
+      return result
     }
   }
 
@@ -34,8 +40,10 @@ final class MobileSignals: NSObject, CLLocationManagerDelegate {
   private var collector: CLLocationManager?
   private var authorizationManager: CLLocationManager?
   private var permissionResult: FlutterResult?
-  private var monitoringVisits = false
-  private var updatingInForeground = false
+  private var channel: FlutterMethodChannel?
+  private var wifiMonitor: NWPathMonitor?
+  private var wifiConnected: Bool?
+  private var updating = false
 
   private func file() throws -> URL {
     let directory = try FileManager.default.url(
@@ -71,6 +79,7 @@ final class MobileSignals: NSObject, CLLocationManagerDelegate {
 
   func register(with messenger: FlutterBinaryMessenger) {
     let channel = FlutterMethodChannel(name: "dev.wintermute/mobile_signals", binaryMessenger: messenger)
+    self.channel = channel
     channel.setMethodCallHandler { [weak self] call, reply in
       guard let self = self else { return reply(FlutterMethodNotImplemented) }
       let args = call.arguments as? [String: Any] ?? [:]
@@ -92,6 +101,10 @@ final class MobileSignals: NSObject, CLLocationManagerDelegate {
           } else if self.outbox?.scope != scope {
             self.stop()
             try self.save(LocationOutbox(scope: scope))
+          }
+          if var box = self.outbox, box.network != (args["network"] as? Bool ?? false) {
+            box.network = args["network"] as? Bool ?? false
+            try self.save(box)
           }
           self.refresh()
           reply(self.status())
@@ -177,13 +190,36 @@ final class MobileSignals: NSObject, CLLocationManagerDelegate {
   private func stop() {
     collector?.delegate = nil
     collector?.stopUpdatingLocation()
-    if monitoringVisits {
-      collector?.stopMonitoringVisits()
-      collector?.stopMonitoringSignificantLocationChanges()
-    }
     collector = nil
-    monitoringVisits = false
-    updatingInForeground = false
+    updating = false
+    configureWifi(false)
+  }
+
+  private func configureWifi(_ enabled: Bool) {
+    if !enabled {
+      wifiMonitor?.cancel()
+      wifiMonitor = nil
+      wifiConnected = nil
+    } else if wifiMonitor == nil {
+      let monitor = NWPathMonitor(requiredInterfaceType: .wifi)
+      wifiMonitor = monitor
+      monitor.pathUpdateHandler = { [weak self, weak monitor] path in
+        guard let self = self, self.wifiMonitor === monitor else { return }
+        self.wifiConnected = path.status == .satisfied
+      }
+      monitor.start(queue: .main)
+    }
+  }
+
+  private func sampleWifi() -> (String, String?) {
+    for interface in CNCopySupportedInterfaces() as? [String] ?? [] {
+      if let info = CNCopyCurrentNetworkInfo(interface as CFString) as? [String: Any],
+         let name = info[kCNNetworkInfoKeySSID as String] as? String, !name.isEmpty {
+        return ("connected", name)
+      }
+    }
+    guard let connected = wifiConnected else { return ("unknown", nil) }
+    return (connected ? "connected" : "disconnected", nil)
   }
 
   @objc private func refresh() {
@@ -212,31 +248,18 @@ final class MobileSignals: NSObject, CLLocationManagerDelegate {
     if collector == nil {
       let manager = CLLocationManager()
       manager.desiredAccuracy = kCLLocationAccuracyHundredMeters
-      manager.distanceFilter = 250
+      manager.distanceFilter = kCLDistanceFilterNone
+      manager.pausesLocationUpdatesAutomatically = false
       collector = manager
       manager.delegate = self
     }
     let background = authorization == .authorizedAlways
-    if var box = outbox, (box.visitsSince != nil) != background {
-      box.visitsSince = background ? Date() : nil
-      do { try save(box) } catch { return }
-    }
-    if background != monitoringVisits {
-      monitoringVisits = background
-      if background {
-        collector?.startMonitoringVisits()
-        if CLLocationManager.significantLocationChangeMonitoringAvailable() {
-          collector?.startMonitoringSignificantLocationChanges()
-        }
-      } else {
-        collector?.stopMonitoringVisits()
-        collector?.stopMonitoringSignificantLocationChanges()
-      }
-    }
-    let foreground = UIApplication.shared.applicationState == .active
-    if foreground != updatingInForeground {
-      updatingInForeground = foreground
-      if foreground { collector?.startUpdatingLocation() }
+    collector?.allowsBackgroundLocationUpdates = background
+    configureWifi(outbox?.network == true)
+    let shouldRun = background || UIApplication.shared.applicationState != .background
+    if shouldRun != updating {
+      updating = shouldRun
+      if shouldRun { collector?.startUpdatingLocation() }
       else { collector?.stopUpdatingLocation() }
     }
   }
@@ -260,36 +283,21 @@ final class MobileSignals: NSObject, CLLocationManagerDelegate {
 
   func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
     guard manager === collector, permitted else { return }
-    for location in locations {
-      record("fix", location.timestamp, location.coordinate, location.horizontalAccuracy)
-    }
-  }
-
-  func locationManager(_ manager: CLLocationManager, didVisit visit: CLVisit) {
-    guard manager === collector, authorization == .authorizedAlways, let since = outbox?.visitsSince else { return }
-    if visit.arrivalDate >= since {
-      record("arrival", visit.arrivalDate, visit.coordinate, visit.horizontalAccuracy)
-    }
-    if visit.departureDate != .distantFuture, visit.departureDate >= since {
-      record("departure", visit.departureDate, visit.coordinate, visit.horizontalAccuracy)
-    }
-  }
-
-  private func record(_ kind: String, _ date: Date, _ coordinate: CLLocationCoordinate2D, _ accuracy: Double) {
-    guard var box = outbox, date >= box.since, CLLocationCoordinate2DIsValid(coordinate),
-          accuracy.isFinite, accuracy >= 0 else { return }
-    let at = Int64(date.timeIntervalSince1970 * 1000)
-    let id = "\(box.generation)-\(kind)-\(at)"
-    guard !box.records.contains(where: { $0.id == id }) else { return }
-    if kind != "fix" {
-      guard !box.recentVisitIDs.contains(id) else { return }
-      box.recentVisitIDs = Array((box.recentVisitIDs + [id]).suffix(64))
-    }
-    let event = Record(id: id, at: at, lat: coordinate.latitude, lon: coordinate.longitude,
-                       accuracy: accuracy, kind: kind)
-    // Visit callbacks can arrive well after the initial position fix.
-    let index = box.records.firstIndex { $0.at > at } ?? box.records.endIndex
-    box.records.insert(event, at: index)
-    try? save(box)
+    guard let location = locations.last, var box = outbox,
+          location.timestamp >= box.since,
+          location.timestamp.timeIntervalSince(box.lastSample ?? .distantPast) >= 20 * 60,
+          CLLocationCoordinate2DIsValid(location.coordinate),
+          location.horizontalAccuracy.isFinite, location.horizontalAccuracy >= 0 else { return }
+    let at = Int64(location.timestamp.timeIntervalSince1970 * 1000)
+    let wifi = box.network == true ? sampleWifi() : nil
+    let coordinate = location.coordinate
+    box.records.append(Record(id: "\(box.generation)-fix-\(at)", at: at,
+        lat: coordinate.latitude, lon: coordinate.longitude, accuracy: location.horizontalAccuracy,
+        kind: "fix", wifiState: wifi?.0, wifiSsid: wifi?.1))
+    box.lastSample = location.timestamp
+    do {
+      try save(box)
+      channel?.invokeMethod("locationReady", arguments: nil)
+    } catch { return }
   }
 }

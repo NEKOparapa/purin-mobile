@@ -16,7 +16,7 @@
 	<key>NSScreenCaptureUsageDescription</key>
 	<string>经你允许，在使用其他应用时定时截屏并同步到已连接的 Wintermute 服务。</string>
 	<key>UIBackgroundModes</key>
-	<array><string>screen-capture</string></array>
+	<array><string>screen-capture</string><string>location</string></array>
 	<key>NSCalendarsUsageDescription</key>
 	<string>启用日历连接器后，可在当前会话中查询日程或创建会议。</string>
 	<key>NSCalendarsFullAccessUsageDescription</key>
@@ -36,7 +36,7 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>通过你开启的位置连接器获取一次位置，或按你开启的地点采集设置生成活动时间线。</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>允许后台定位后，Wintermute 可在手机锁屏或应用进入后台时记录地点到达、离开和较大位置变化。</string>
+	<string>允许后台定位后，Wintermute 可在手机锁屏或应用进入后台时定时采集位置，并按你的设置记录 Wi-Fi 连接信息。</string>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>连接你配置的局域网 Wintermute Agent 服务。</string>
 	<key>NSAppTransportSecurity</key>
