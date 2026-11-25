@@ -11,14 +11,13 @@ class ChatBubble extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final atmosphere = AppAtmosphere.of(context);
+    final colors = Theme.of(context).colorScheme;
     final fill = fromUser
         ? atmosphere.userBubbleFill
         : atmosphere.assistantBubbleFill;
-    final edge = Color.lerp(
-      fill,
-      Theme.of(context).colorScheme.outlineVariant,
-      .6,
-    )!;
+    final edge = fromUser
+        ? Color.lerp(fill, colors.primary, 0.20)!
+        : atmosphere.cardBorder;
     const inset = 14.0;
     const tail = _BubblePainter.tail;
     return CustomPaint(
@@ -45,7 +44,7 @@ class _BubblePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    const stroke = .75;
+    const stroke = 0.85;
     final w = size.width - stroke, h = size.height - stroke;
     if (w <= tail || h <= 0) return;
     final r = math.min(16.0, math.min((w - tail) / 2, h / 2));

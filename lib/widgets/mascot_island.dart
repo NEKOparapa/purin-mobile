@@ -216,9 +216,12 @@ class _MascotIslandState extends State<MascotIsland>
                   button: true,
                   label: _expanded ? '返回对话' : '展开今日通知与安排，$status',
                   child: Material(
-                    color: const Color(0xff191a1c),
-                    borderRadius: BorderRadius.circular(24),
-                    elevation: 4,
+                    color: const Color(0xF218212E),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(24),
+                      side: const BorderSide(color: Color(0x24C8DEF8)),
+                    ),
+                    elevation: 2,
                     clipBehavior: Clip.antiAlias,
                     child: InkWell(
                       onTap: _tap,
@@ -257,7 +260,7 @@ class _MascotIslandState extends State<MascotIsland>
                                           Icon(
                                             icon,
                                             size: 20,
-                                            color: const Color(0xfff2c7a4),
+                                            color: const Color(0xFF92C8FF),
                                           ),
                                         ],
                                       ),
@@ -288,7 +291,7 @@ class _MascotIslandState extends State<MascotIsland>
                   ? '今天没有通知或安排'
                   : null);
     return DefaultTextStyle(
-      style: const TextStyle(color: Color(0xfffaf8f5), fontSize: 14),
+      style: const TextStyle(color: Color(0xfff4f4f6), fontSize: 14),
       child: Padding(
         padding: const EdgeInsets.symmetric(vertical: 14),
         child: Column(
@@ -320,7 +323,7 @@ class _MascotIslandState extends State<MascotIsland>
                           : Icons.notifications_none_rounded,
                       semanticLabel: entry.notification == null ? '安排' : '通知',
                       size: 16,
-                      color: const Color(0xfff2c7a4),
+                      color: const Color(0xFF92C8FF),
                     ),
                     const SizedBox(width: 6),
                     Text(islandTime(entry.at)),
@@ -337,7 +340,7 @@ class _MascotIslandState extends State<MascotIsland>
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               style: const TextStyle(
-                                color: Color(0xffc5c6ca),
+                                color: Color(0xFFA0B3C8),
                                 fontSize: 13,
                               ),
                             ),

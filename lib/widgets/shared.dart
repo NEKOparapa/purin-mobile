@@ -1,3 +1,4 @@
+import 'dart:ui' show ImageFilter;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'app_theme.dart';
@@ -8,11 +9,66 @@ class AtmosphereBackground extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: Theme.of(context).colorScheme.surface,
-      child: child,
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: dark
+              ? const [
+                  Color(0xFF141A24),
+                  Color(0xFF121B28),
+                  Color(0xFF152030),
+                ]
+              : const [
+                  Color(0xFFF8F7F4),
+                  Color(0xFFEDF4FC),
+                  Color(0xFFF7FAFE),
+                ],
+          stops: dark ? const [0, 0.55, 1] : const [0, 0.52, 1],
+        ),
+      ),
+      child: CustomPaint(
+        painter: _SkyMistPainter(dark: dark),
+        child: child,
+      ),
     );
   }
+}
+
+class _SkyMistPainter extends CustomPainter {
+  const _SkyMistPainter({required this.dark});
+  final bool dark;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    if (size.isEmpty) return;
+    final rect = Offset.zero & size;
+    final bloomCenter = Offset(size.width * 0.50, -size.height * 0.08);
+    final bloomRadius = size.longestSide * 0.55;
+    canvas.drawRect(
+      rect,
+      Paint()
+        ..shader = RadialGradient(
+          colors: dark
+              ? const [
+                  Color(0x14FFE0BA),
+                  Color(0x00FFE0BA),
+                ]
+              : const [
+                  Color(0xE6FFFAEE),
+                  Color(0x00FFFAEE),
+                ],
+          stops: const [0.0, 1.0],
+        ).createShader(
+          Rect.fromCircle(center: bloomCenter, radius: bloomRadius),
+        ),
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SkyMistPainter oldDelegate) => oldDelegate.dark != dark;
 }
 
 /// Paint the header wash above scrolling content, leaving controls fully opaque.
@@ -126,14 +182,21 @@ class GlassCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final atmo = AppAtmosphere.of(context);
     final shape = BorderRadius.circular(radius);
-    Widget inner = Container(
-      padding: padding,
-      decoration: BoxDecoration(
-        color: color ?? atmo.cardFill,
-        borderRadius: shape,
-        border: Border.all(color: borderColor ?? atmo.cardBorder, width: 0.9),
+    final baseFill = color ?? atmo.cardFill;
+    Widget inner = BackdropFilter(
+      filter: ImageFilter.blur(sigmaX: 18, sigmaY: 18),
+      child: Container(
+        padding: padding,
+        decoration: BoxDecoration(
+          color: baseFill,
+          borderRadius: shape,
+          border: Border.all(
+            color: borderColor ?? atmo.cardBorder,
+            width: 0.9,
+          ),
+        ),
+        child: child,
       ),
-      child: child,
     );
     inner = ClipRRect(borderRadius: shape, child: inner);
     if (!shadows) return inner;
@@ -143,8 +206,8 @@ class GlassCard extends StatelessWidget {
         boxShadow: [
           BoxShadow(
             color: atmo.shadowColor,
-            blurRadius: 10,
-            offset: const Offset(0, 3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
