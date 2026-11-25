@@ -12,6 +12,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.PixelFormat
 import android.graphics.Point
 import android.hardware.display.DisplayManager
@@ -203,7 +204,8 @@ class ScreenshotService : Service() {
         } else Notification.Builder(this)
         val stop = PendingIntent.getService(this, 1, Intent(this, ScreenshotService::class.java).setAction(STOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-        return builder.setSmallIcon(android.R.drawable.ic_menu_camera)
+        return builder.setSmallIcon(R.drawable.ic_stat_purin)
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
             .setContentTitle("Purin 正在采集前台应用截图").setContentText("同一应用连续停留 10 分钟后截取一次")
             .setOngoing(true).addAction(android.R.drawable.ic_menu_close_clear_cancel, "停止共享", stop).build()
     }

@@ -480,6 +480,11 @@ void main() {
     await tester.tap(find.text('外观'));
     await tester.pumpAndSettle();
     expect(find.text('界面主题'), findsOneWidget);
+    expect(find.text('跟随系统'), findsNothing);
+    expect(
+      find.text('始终使用明亮通透的云雾浅色背景与毛玻璃卡片表面。'),
+      findsOneWidget,
+    );
     await tester.tap(find.text('深色'));
     await tester.pumpAndSettle();
     expect(

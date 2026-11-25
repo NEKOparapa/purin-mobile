@@ -1,7 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purin_canvas">#131A24</color>
-    <color name="purin_accent">#6BB0FF</color>
-    <color name="purin_on_accent">#081728</color>
-    <style name="PurinPlatformTheme" parent="@android:style/Theme.Material.NoActionBar" />
+    <color name="purin_canvas">#EEF4FB</color>
+    <color name="purin_accent">#3983DF</color>
+    <color name="purin_on_accent">#FFFFFF</color>
+    <style name="PurinPlatformTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:windowLightNavigationBar">true</item>
+    </style>
 </resources>

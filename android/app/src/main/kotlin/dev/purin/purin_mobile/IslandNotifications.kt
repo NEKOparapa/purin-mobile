@@ -10,7 +10,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
-import io.flutter.FlutterInjector
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.util.Calendar
@@ -30,8 +29,7 @@ internal class IslandNotifications(private val activity: MainActivity, val chann
     private var minimized = false
     private var lastContent: Pair<String, List<String>>? = null
     private val head by lazy {
-        val path = FlutterInjector.instance().flutterLoader().getLookupKeyForAsset("assets/mascot/island-head@3x.png")
-        activity.assets.open(path).use { BitmapFactory.decodeStream(it) }
+        BitmapFactory.decodeResource(activity.resources, R.mipmap.ic_launcher)
     }
 
     init {
@@ -132,7 +130,7 @@ internal class IslandNotifications(private val activity: MainActivity, val chann
             set(Calendar.MILLISECOND, 0)
         }
         val notification = Notification.Builder(activity, CHANNEL)
-            .setSmallIcon(R.drawable.ic_island_cat).setLargeIcon(head)
+            .setSmallIcon(R.drawable.ic_stat_purin).setLargeIcon(head)
             .setContentTitle("今日通知与安排").setContentText(text.replace("\n", " · "))
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setSubText("todo").setShortCriticalText(chip)

@@ -7,6 +7,7 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -63,7 +64,9 @@ class UsageService : Service() {
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(this, channel)
-            .setSmallIcon(R.drawable.ic_island_cat).setContentTitle(if (withLocation) "正在定时采集位置" else "正在记录前台应用活动")
+            .setSmallIcon(R.drawable.ic_stat_purin)
+            .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
+            .setContentTitle(if (withLocation) "正在定时采集位置" else "正在记录前台应用活动")
             .setContentText("可在「信息采集」中调整或关闭。")
             .setContentIntent(open).setOngoing(true).setOnlyAlertOnce(true).build()
         if (Build.VERSION.SDK_INT >= 29) {

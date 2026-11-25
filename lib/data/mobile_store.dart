@@ -33,9 +33,9 @@ class DeviceStore implements MobileStore {
   @override
   Future<ThemeMode> readTheme() async {
     final file = await _themeFile;
-    if (!await file.exists()) return ThemeMode.system;
-    final name = await file.readAsString();
-    return ThemeMode.values.byName(name);
+    if (!await file.exists()) return ThemeMode.light;
+    final name = (await file.readAsString()).trim();
+    return name == ThemeMode.dark.name ? ThemeMode.dark : ThemeMode.light;
   }
 
   @override

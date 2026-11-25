@@ -13,11 +13,7 @@ class ConnectionScreen extends StatelessWidget {
   const ConnectionScreen({super.key, required this.session});
   final MobileSession session;
 
-  String _themeLabel(ThemeMode mode) => switch (mode) {
-    ThemeMode.system => '跟随系统',
-    ThemeMode.light => '浅色',
-    ThemeMode.dark => '深色',
-  };
+  String _themeLabel(ThemeMode mode) => mode == ThemeMode.dark ? '深色' : '浅色';
 
   String _collectionSummary(MobileSession s) {
     if (s.connection == null) return '连接服务后可配置采集项';
@@ -108,7 +104,7 @@ class ConnectionScreen extends StatelessWidget {
                               icon: Icons.palette_outlined,
                             ),
                             title: '外观',
-                            subtitle: '浅色、深色或跟随系统自动切换',
+                            subtitle: '切换浅色或深色界面主题',
                             trailing: Text(
                               _themeLabel(mode),
                               style: TextStyle(
@@ -803,12 +799,6 @@ class _AppearanceSettingsScreen extends StatefulWidget {
 class _AppearanceSettingsScreenState extends State<_AppearanceSettingsScreen> {
   static const _options = [
     (
-      mode: ThemeMode.system,
-      label: '跟随系统',
-      icon: Icons.brightness_auto_rounded,
-      description: '跟随设备的系统显示设置自动切换浅色与深色主题。',
-    ),
-    (
       mode: ThemeMode.light,
       label: '浅色',
       icon: Icons.light_mode_rounded,
@@ -1125,28 +1115,7 @@ class _ThemePreviewGraphic extends StatelessWidget {
         ),
         child: ClipRRect(
           borderRadius: BorderRadius.circular(11.2),
-          child: switch (mode) {
-            ThemeMode.light => const _MockChatCanvas(dark: false),
-            ThemeMode.dark => const _MockChatCanvas(dark: true),
-            ThemeMode.system => Stack(
-              fit: StackFit.expand,
-              children: [
-                const _MockChatCanvas(dark: false),
-                ClipRect(
-                  clipper: const _RightHalfClipper(),
-                  child: DecoratedBox(
-                    position: DecorationPosition.foreground,
-                    decoration: const BoxDecoration(
-                      border: Border(
-                        left: BorderSide(color: Color(0x387890AD), width: 0.8),
-                      ),
-                    ),
-                    child: const _MockChatCanvas(dark: true),
-                  ),
-                ),
-              ],
-            ),
-          },
+          child: _MockChatCanvas(dark: mode == ThemeMode.dark),
         ),
       ),
     );
@@ -1246,17 +1215,6 @@ class _MockChatCanvas extends StatelessWidget {
       ),
     );
   }
-}
-
-class _RightHalfClipper extends CustomClipper<Rect> {
-  const _RightHalfClipper();
-
-  @override
-  Rect getClip(Size size) =>
-      Rect.fromLTRB(size.width * 0.5, 0, size.width, size.height);
-
-  @override
-  bool shouldReclip(covariant CustomClipper<Rect> oldClipper) => false;
 }
 
 // =============================================================================

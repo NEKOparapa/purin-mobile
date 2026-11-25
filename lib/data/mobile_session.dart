@@ -98,21 +98,26 @@ class MobileSession extends ChangeNotifier {
   int _captureRevision = 0;
   int _retrySeconds = 0;
   DateTime? _retryAfter;
-  final themeMode = ValueNotifier(ThemeMode.system);
+  final themeMode = ValueNotifier(ThemeMode.light);
 
   Future<void> restoreTheme() async {
     try {
       final mode = await store.readTheme();
-      if (!_disposed) themeMode.value = mode;
+      if (!_disposed) {
+        themeMode.value = mode == ThemeMode.dark
+            ? ThemeMode.dark
+            : ThemeMode.light;
+      }
     } catch (e) {
       // A missing or unreadable appearance preference must not block startup.
-      if (!_disposed) themeMode.value = ThemeMode.system;
+      if (!_disposed) themeMode.value = ThemeMode.light;
     }
   }
 
   Future<void> setTheme(ThemeMode mode) async {
-    await store.saveTheme(mode);
-    if (!_disposed) themeMode.value = mode;
+    final next = mode == ThemeMode.dark ? ThemeMode.dark : ThemeMode.light;
+    await store.saveTheme(next);
+    if (!_disposed) themeMode.value = next;
   }
 
   Connection? connection;

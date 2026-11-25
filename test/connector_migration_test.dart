@@ -33,7 +33,7 @@ class _MemoryStore implements MobileStore {
   Future<String> installationId() async => 'test-install';
 
   @override
-  Future<ThemeMode> readTheme() async => ThemeMode.system;
+  Future<ThemeMode> readTheme() async => ThemeMode.light;
 
   @override
   Future<void> saveTheme(ThemeMode mode) async {}
