@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'agent_api.dart';
 
 class MobileSignals {
-  static const _channel = MethodChannel('dev.wintermute/mobile_signals');
+  static const _channel = MethodChannel('dev.purin/mobile_signals');
   void onLocationReady(Future<void> Function()? handler) {
     if (!Platform.isIOS) return;
     _channel.setMethodCallHandler(

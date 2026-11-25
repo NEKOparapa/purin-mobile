@@ -18,22 +18,29 @@ class MobileSession extends ChangeNotifier {
     this.api, {
     MobileSignals? signals,
     MobileScreenshots? screenshots,
+    MobileConnectors? connectors,
   }) : signals = signals ?? MobileSignals(),
-       screenshots = screenshots ?? MobileScreenshots();
+       screenshots = screenshots ?? MobileScreenshots(),
+       connectors = connectors ?? MobileConnectors();
   final MobileStore store;
   String? installation;
   final AgentApi api;
   late final inbox = DeviceInbox(api);
   final MobileSignals signals;
   final MobileScreenshots screenshots;
-  final connectors = MobileConnectors();
-  bool connectorEnabled(MobileConnector item) => _tools.selected.contains(item);
+  final MobileConnectors connectors;
+  bool connectorSupported(MobileConnector item) =>
+      item.platform == connectors.platform;
+  bool connectorEnabled(MobileConnector item) =>
+      connectorSupported(item) && _tools.selected.contains(item);
   bool connectorGranted(MobileConnector item) =>
-      item.platform == connectors.platform && _tools.access[item.key] == true;
+      connectorSupported(item) && _tools.access[item.key] == true;
 
   Future<String?> setMobileConnector(MobileConnector item, bool enabled) async {
     final conn = connection;
-    if (item.platform != connectors.platform) return '此连接器不适用于当前设备。';
+    if (!connectorSupported(item)) {
+      return '此连接器仅可在 ${item.platform.label} 设备上启用。';
+    }
     if (!canEnableConnectors || conn == null) {
       return '请先通过 HTTPS 或本机回环地址连接服务。';
     }

@@ -9,11 +9,14 @@ enum ConnectorPlatform {
 
   const ConnectorPlatform(this.label);
   final String label;
+  static const mobile = [android, ios];
   static ConnectorPlatform get current => Platform.isAndroid
       ? android
       : Platform.isIOS
       ? ios
       : unsupported;
+  List<ConnectorPlatform> get displayOrder =>
+      this == ios ? const [ios, android] : mobile;
   Iterable<MobileConnector> get catalog =>
       MobileConnector.values.where((item) => item.platform == this);
 }
@@ -78,9 +81,11 @@ enum MobileConnector {
 }
 
 class MobileConnectors {
-  final ConnectorPlatform platform = ConnectorPlatform.current;
+  MobileConnectors([ConnectorPlatform? platform])
+    : platform = platform ?? ConnectorPlatform.current;
+  final ConnectorPlatform platform;
   MethodChannel get _channel =>
-      MethodChannel('dev.wintermute/${platform.name}_connectors');
+      MethodChannel('dev.purin/${platform.name}_connectors');
 
   Future<Map<String, bool>> access(String scope) async =>
       platform == ConnectorPlatform.unsupported

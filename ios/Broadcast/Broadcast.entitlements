@@ -3,6 +3,6 @@
 <plist version="1.0">
 <dict>
   <key>com.apple.security.application-groups</key>
-  <array><string>group.dev.wintermute.wintermuteMobile.screenshots</string></array>
+  <array><string>group.dev.purin.purinMobile.screenshots</string></array>
 </dict>
 </plist>

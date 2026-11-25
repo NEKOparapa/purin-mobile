@@ -1,4 +1,4 @@
-package dev.wintermute.wintermute_mobile
+package dev.purin.purin_mobile
 
 import android.app.Activity
 import android.app.KeyguardManager
@@ -93,7 +93,7 @@ class ScreenshotService : Service() {
             projection = session
             session.registerCallback(callback, main)
             val (width,height) = dimensions()
-            display = session.createVirtualDisplay("Wintermute", width, height, resources.displayMetrics.densityDpi,
+            display = session.createVirtualDisplay("Purin", width, height, resources.displayMetrics.densityDpi,
                 DisplayManager.VIRTUAL_DISPLAY_FLAG_AUTO_MIRROR, null, null, main)
             shots.activeGeneration = next
             timer.reset()
@@ -204,7 +204,7 @@ class ScreenshotService : Service() {
         val stop = PendingIntent.getService(this, 1, Intent(this, ScreenshotService::class.java).setAction(STOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         return builder.setSmallIcon(android.R.drawable.ic_menu_camera)
-            .setContentTitle("Wintermute 正在采集前台应用截图").setContentText("同一应用连续停留 10 分钟后截取一次")
+            .setContentTitle("Purin 正在采集前台应用截图").setContentText("同一应用连续停留 10 分钟后截取一次")
             .setOngoing(true).addAction(android.R.drawable.ic_menu_close_clear_cancel, "停止共享", stop).build()
     }
 
@@ -244,6 +244,6 @@ class ScreenshotService : Service() {
     }
 
     companion object {
-        private const val STOP = "dev.wintermute.STOP_SCREENSHOTS"
+        private const val STOP = "dev.purin.STOP_SCREENSHOTS"
     }
 }

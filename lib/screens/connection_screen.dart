@@ -72,7 +72,7 @@ class ConnectionScreen extends StatelessWidget {
                             icon: Icons.cable_rounded,
                             highlight: connected,
                           ),
-                          title: '连接',
+                          title: '设备配对',
                           subtitle: connSubtitle,
                           showChevron: true,
                           onTap: () => _push(
@@ -86,7 +86,7 @@ class ConnectionScreen extends StatelessWidget {
                           ),
                           title: '连接器',
                           subtitle: session.connectors.platform.catalog.isEmpty
-                              ? '当前平台没有移动连接器'
+                              ? '查看 Android 与 iOS 连接器'
                               : '管理本机的 ${session.connectors.platform.label} 连接器',
                           showChevron: true,
                           onTap: () => _push(
@@ -108,7 +108,14 @@ class ConnectionScreen extends StatelessWidget {
                               icon: Icons.palette_outlined,
                             ),
                             title: '外观',
-                            subtitle: '当前：${_themeLabel(mode)}',
+                            subtitle: '浅色、深色或跟随系统自动切换',
+                            trailing: Text(
+                              _themeLabel(mode),
+                              style: TextStyle(
+                                fontSize: 13.5,
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
                             showChevron: true,
                             onTap: () => _push(
                               context,
@@ -250,8 +257,18 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
       _feedback = null;
       _connectionError = false;
       _editing = true;
-      _manual = false;
+      _manual = conn != null;
+      _obscureToken = true;
       _pairValue.clear();
+    });
+  }
+
+  void _cancelEditing() {
+    FocusManager.instance.primaryFocus?.unfocus();
+    setState(() {
+      _editing = false;
+      _feedback = null;
+      _connectionError = false;
     });
   }
 
@@ -345,232 +362,394 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
   Widget build(BuildContext context) {
     final session = widget.session;
     final colors = Theme.of(context).colorScheme;
-    return AtmosphereScaffold(
-      title: '连接',
-      body: SafeArea(
-        top: false,
-        child: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 600),
-            child: ListenableBuilder(
-              listenable: session,
-              builder: (context, _) {
-                final conn = session.connection;
-                final connected = conn != null;
-                final showForm = !connected || _editing;
-                final platform = DevicePlatform.current?.label ?? '未知';
+    final atmo = AppAtmosphere.of(context);
+    return ListenableBuilder(
+      listenable: session,
+      builder: (context, _) {
+        final conn = session.connection;
+        final connected = conn != null;
+        final showForm = !connected || _editing;
+        final platform = DevicePlatform.current?.label ?? '未知';
+        final healthy = session.error == null;
 
-                return ListView(
+        return AtmosphereScaffold(
+          title: connected && _editing ? '编辑连接' : '设备配对',
+          actions: [
+            if (connected && _editing)
+              TextButton(
+                onPressed: _working ? null : _cancelEditing,
+                child: const Text('取消'),
+              ),
+          ],
+          body: SafeArea(
+            top: false,
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 600),
+                child: ListView(
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 40),
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   children: [
-                    if (!showForm)
+                    if (!showForm) ...[
                       SettingsSection(
-                        title: '连接状态',
-                        dividers: true,
+                        title: '当前连接',
                         children: [
-                          _FactRow(
-                            label: '状态',
-                            value: session.error != null ? '连接异常' : '已连接',
-                            highlight: session.error == null,
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
+                            child: Row(
+                              children: [
+                                Container(
+                                  width: 38,
+                                  height: 38,
+                                  decoration: BoxDecoration(
+                                    color:
+                                        (healthy
+                                                ? colors.primary
+                                                : colors.error)
+                                            .withValues(alpha: 0.12),
+                                    borderRadius: BorderRadius.circular(12),
+                                  ),
+                                  child: Icon(
+                                    healthy
+                                        ? Icons.cloud_done_outlined
+                                        : Icons.cloud_off_outlined,
+                                    size: 20,
+                                    color: healthy
+                                        ? colors.primary
+                                        : colors.error,
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        conn.deviceName,
+                                        style: TextStyle(
+                                          fontSize: 16,
+                                          fontWeight: FontWeight.w600,
+                                          color: colors.onSurface,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 2),
+                                      Text(
+                                        conn.url,
+                                        maxLines: 1,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          color: colors.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                _ConnectionStatusBadge(healthy: healthy),
+                              ],
+                            ),
                           ),
-                          _FactRow(label: '设备名称', value: conn.deviceName),
                           _FactRow(label: '设备平台', value: platform),
                           _FactRow(label: '设备 ID', value: conn.deviceId),
                           _FactRow(label: '服务地址', value: conn.url),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
-                            child: FilledButton.tonal(
-                              onPressed: _startEditing,
-                              child: const Text('编辑连接'),
-                            ),
-                          ),
-                        ],
-                      )
-                    else if (!_manual)
-                      SettingsSection(
-                        title: '配对设备',
-                        footer: '在管理页点「添加设备」，扫码或粘贴链接即可连接。',
-                        dividers: true,
-                        children: [
-                          _InlineField(
-                            label: '配对链接',
-                            keyboardType: TextInputType.url,
-                            controller: _pairValue,
-                            hintText: '从管理面板复制',
-                            enabled: !_working,
-                            onChanged: (value) {
-                              if (pairingAddress(value) != null) _connect();
-                            },
-                            trailing: IconButton(
-                              tooltip: '扫码配对',
-                              icon: const Icon(Icons.qr_code_scanner_rounded),
-                              onPressed: _working || !session.ready
-                                  ? null
-                                  : _scan,
-                            ),
-                            textInputAction: TextInputAction.go,
-                            onSubmitted: (_) {
-                              if (!_working && session.ready) _connect();
-                            },
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: FilledButton(
-                                    onPressed: _working || !session.ready
-                                        ? null
-                                        : _connect,
-                                    child: Text(_working ? '正在配对…' : '配对并连接'),
-                                  ),
-                                ),
-                                TextButton(
-                                  onPressed: _working
-                                      ? null
-                                      : () => setState(() => _manual = true),
-                                  child: const Text('手动配置'),
-                                ),
-                                if (connected)
-                                  TextButton(
-                                    onPressed: _working
-                                        ? null
-                                        : () =>
-                                              setState(() => _editing = false),
-                                    child: const Text('取消'),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      )
-                    else
-                      SettingsSection(
-                        title: connected ? '编辑服务连接' : '服务连接',
-                        footer: '填写已有连接的服务地址、设备 ID 和令牌。',
-                        dividers: true,
-                        children: [
-                          _InlineField(
-                            label: '服务地址',
-                            controller: _url,
-                            hintText: 'https://wintermute.example',
-                            keyboardType: TextInputType.url,
-                            textInputAction: TextInputAction.next,
-                          ),
-                          _InlineField(
-                            label: '设备名称',
-                            controller: _name,
-                            maxLength: 80,
-                            textInputAction: TextInputAction.next,
-                          ),
-                          _FactRow(label: '设备平台', value: platform),
-                          _InlineField(
-                            label: '设备 ID',
-                            controller: _deviceId,
-                            textInputAction: TextInputAction.next,
-                          ),
-                          _InlineField(
-                            label: '设备令牌',
-                            controller: _token,
-                            obscureText: _obscureToken,
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) {
-                              if (!_working && session.ready) _connect();
-                            },
-                            trailing: IconButton(
-                              tooltip: _obscureToken ? '显示令牌' : '隐藏令牌',
-                              visualDensity: VisualDensity.compact,
-                              onPressed: () => setState(
-                                () => _obscureToken = !_obscureToken,
-                              ),
-                              icon: Icon(
-                                _obscureToken
-                                    ? Icons.visibility_off_outlined
-                                    : Icons.visibility_outlined,
-                                size: 19,
-                                color: colors.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: FilledButton(
-                                    onPressed: _working || !session.ready
-                                        ? null
-                                        : _connect,
-                                    child: _working
-                                        ? const CupertinoActivityIndicator(
-                                            radius: 9,
-                                          )
-                                        : const Text('验证并保存'),
-                                  ),
-                                ),
-                                TextButton(
-                                  onPressed: _working
-                                      ? null
-                                      : () => setState(() => _manual = false),
-                                  child: const Text('使用配对链接'),
-                                ),
-                                if (connected && _editing) ...[
-                                  const SizedBox(width: 8),
-                                  TextButton(
-                                    onPressed: _working
-                                        ? null
-                                        : () => setState(() {
-                                            _editing = false;
-                                            _feedback = null;
-                                          }),
-                                    child: const Text('取消'),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
                         ],
                       ),
+                      const SizedBox(height: 18),
+                      SizedBox(
+                        width: double.infinity,
+                        child: FilledButton.tonal(
+                          onPressed: _startEditing,
+                          style: FilledButton.styleFrom(
+                            backgroundColor: colors.primary.withValues(
+                              alpha: 0.12,
+                            ),
+                            foregroundColor: colors.primary,
+                          ),
+                          child: const Text('编辑连接'),
+                        ),
+                      ),
+                    ] else ...[
+                      AppleSegmentedControl<bool>(
+                        items: const [(false, '配对链接'), (true, '手动配置')],
+                        selected: _manual,
+                        enabled: !_working,
+                        onChanged: (manual) => setState(() {
+                          _manual = manual;
+                          _feedback = null;
+                        }),
+                      ),
+                      const SizedBox(height: 18),
+                      if (!_manual) ...[
+                        SettingsSection(
+                          title: '配对设备',
+                          footer: '在后端管理面板点击「添加设备」，粘贴一次性配对链接或直接扫码即可自动完成配置。',
+                          children: [
+                            _InlineField(
+                              label: '配对链接',
+                              keyboardType: TextInputType.url,
+                              controller: _pairValue,
+                              hintText: '粘贴 https://... 配对链接',
+                              enabled: !_working,
+                              onChanged: (value) {
+                                if (pairingAddress(value) != null) _connect();
+                              },
+                              textInputAction: TextInputAction.go,
+                              onSubmitted: (_) {
+                                if (!_working && session.ready) _connect();
+                              },
+                            ),
+                            SettingsTile(
+                              leading: Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: colors.primary.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(9),
+                                ),
+                                child: Icon(
+                                  Icons.qr_code_scanner_rounded,
+                                  size: 18,
+                                  color: colors.primary,
+                                ),
+                              ),
+                              title: '扫码配对',
+                              subtitle: '使用相机扫描管理面板上的二维码',
+                              showChevron: true,
+                              enabled: !_working && session.ready,
+                              onTap: _scan,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: _working || !session.ready
+                                ? null
+                                : _connect,
+                            child: _working
+                                ? const CupertinoActivityIndicator(radius: 9)
+                                : const Text('配对并连接'),
+                          ),
+                        ),
+                      ] else ...[
+                        SettingsSection(
+                          title: '服务与凭据',
+                          footer: '填写后端服务根地址（不含 /v1 或其他路径）、设备标识与访问令牌。',
+                          children: [
+                            _InlineField(
+                              label: '服务地址',
+                              controller: _url,
+                              hintText: 'https://purin.example',
+                              keyboardType: TextInputType.url,
+                              enabled: !_working,
+                              textInputAction: TextInputAction.next,
+                            ),
+                            _InlineField(
+                              label: '设备名称',
+                              controller: _name,
+                              hintText: Connection.defaultDeviceName,
+                              maxLength: 80,
+                              enabled: !_working,
+                              textInputAction: TextInputAction.next,
+                            ),
+                            _InlineField(
+                              label: '设备 ID',
+                              controller: _deviceId,
+                              hintText: 'mobile-device',
+                              enabled: !_working,
+                              textInputAction: TextInputAction.next,
+                            ),
+                            _InlineField(
+                              label: '设备令牌',
+                              controller: _token,
+                              hintText: 'Bearer token',
+                              obscureText: _obscureToken,
+                              enabled: !_working,
+                              textInputAction: TextInputAction.done,
+                              onSubmitted: (_) {
+                                if (!_working && session.ready) _connect();
+                              },
+                              trailing: IconButton(
+                                tooltip: _obscureToken ? '显示令牌' : '隐藏令牌',
+                                visualDensity: VisualDensity.compact,
+                                onPressed: _working
+                                    ? null
+                                    : () => setState(
+                                        () => _obscureToken = !_obscureToken,
+                                      ),
+                                icon: Icon(
+                                  _obscureToken
+                                      ? Icons.visibility_off_outlined
+                                      : Icons.visibility_outlined,
+                                  size: 19,
+                                  color: colors.onSurfaceVariant,
+                                ),
+                              ),
+                            ),
+                            _InlineReadOnlyField(
+                              label: '设备平台',
+                              value: platform,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 18),
+                        SizedBox(
+                          width: double.infinity,
+                          child: FilledButton(
+                            onPressed: _working || !session.ready
+                                ? null
+                                : _connect,
+                            child: _working
+                                ? const CupertinoActivityIndicator(radius: 9)
+                                : const Text('验证并保存'),
+                          ),
+                        ),
+                      ],
+                    ],
                     if (_feedback != null)
                       Padding(
-                        padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                        padding: const EdgeInsets.only(top: 14),
                         child: Semantics(
                           liveRegion: true,
-                          child: Text(
-                            _feedback!,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13.5,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 14,
+                              vertical: 11,
+                            ),
+                            decoration: BoxDecoration(
                               color: _connectionError
-                                  ? colors.error
-                                  : colors.onSurfaceVariant,
+                                  ? colors.errorContainer
+                                  : atmo.cardFill,
+                              borderRadius: BorderRadius.circular(14),
+                              border: Border.all(
+                                color: _connectionError
+                                    ? colors.error.withValues(alpha: 0.25)
+                                    : atmo.hairline,
+                              ),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(
+                                  _connectionError
+                                      ? Icons.error_outline_rounded
+                                      : Icons.check_circle_outline_rounded,
+                                  size: 18,
+                                  color: _connectionError
+                                      ? colors.error
+                                      : colors.primary,
+                                ),
+                                const SizedBox(width: 9),
+                                Expanded(
+                                  child: Text(
+                                    _feedback!,
+                                    style: TextStyle(
+                                      fontSize: 13.5,
+                                      color: _connectionError
+                                          ? colors.onErrorContainer
+                                          : colors.onSurface,
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         ),
                       ),
                   ],
-                );
-              },
+                ),
+              ),
             ),
           ),
-        ),
+        );
+      },
+    );
+  }
+}
+
+class _ConnectionStatusBadge extends StatelessWidget {
+  const _ConnectionStatusBadge({required this.healthy});
+  final bool healthy;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final fg = healthy ? const Color(0xFF16855E) : colors.error;
+    final darkFg = healthy ? const Color(0xFF45D4A6) : colors.error;
+    final tone = Theme.of(context).brightness == Brightness.dark ? darkFg : fg;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(
+        color: tone.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(99),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 6.5,
+            height: 6.5,
+            decoration: BoxDecoration(color: tone, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: 5),
+          Text(
+            healthy ? '已连接' : '连接异常',
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+              color: tone,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _InlineReadOnlyField extends StatelessWidget {
+  const _InlineReadOnlyField({required this.label, required this.value});
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 74,
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w500,
+                color: colors.onSurface,
+              ),
+            ),
+          ),
+          const SizedBox(width: 6),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(fontSize: 15, color: colors.onSurfaceVariant),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _FactRow extends StatelessWidget {
-  const _FactRow({
-    required this.label,
-    required this.value,
-    this.highlight = false,
-  });
+  const _FactRow({required this.label, required this.value});
 
   final String label;
   final String value;
-  final bool highlight;
 
   @override
   Widget build(BuildContext context) {
@@ -598,8 +777,8 @@ class _FactRow extends StatelessWidget {
               textAlign: TextAlign.right,
               style: TextStyle(
                 fontSize: 15,
-                fontWeight: highlight ? FontWeight.w600 : FontWeight.w400,
-                color: highlight ? colors.primary : colors.onSurface,
+                fontWeight: FontWeight.w400,
+                color: colors.onSurface,
               ),
             ),
           ),
@@ -622,6 +801,27 @@ class _AppearanceSettingsScreen extends StatefulWidget {
 }
 
 class _AppearanceSettingsScreenState extends State<_AppearanceSettingsScreen> {
+  static const _options = [
+    (
+      mode: ThemeMode.system,
+      label: '跟随系统',
+      icon: Icons.brightness_auto_rounded,
+      description: '跟随设备的系统显示设置自动切换浅色与深色主题。',
+    ),
+    (
+      mode: ThemeMode.light,
+      label: '浅色',
+      icon: Icons.light_mode_rounded,
+      description: '始终使用明亮通透的云雾浅色背景与毛玻璃卡片表面。',
+    ),
+    (
+      mode: ThemeMode.dark,
+      label: '深色',
+      icon: Icons.dark_mode_rounded,
+      description: '始终使用柔和低眩光的夜空深色背景与深色卡片表面。',
+    ),
+  ];
+
   bool _saving = false;
   String? _error;
 
@@ -643,6 +843,7 @@ class _AppearanceSettingsScreenState extends State<_AppearanceSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
     return AtmosphereScaffold(
       title: '外观',
       body: SafeArea(
@@ -650,57 +851,412 @@ class _AppearanceSettingsScreenState extends State<_AppearanceSettingsScreen> {
         child: Center(
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 600),
-            child: ListView(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
-              children: [
-                SettingsSection(
-                  title: '主题',
-                  footer: '外观偏好仅保存在当前设备上，切换后立即生效。',
+            child: ValueListenableBuilder<ThemeMode>(
+              valueListenable: widget.session.themeMode,
+              builder: (context, selected, _) {
+                final active = _options.firstWhere(
+                  (item) => item.mode == selected,
+                  orElse: () => _options.first,
+                );
+                return ListView(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(20, 16, 20, 18),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          ValueListenableBuilder<ThemeMode>(
-                            valueListenable: widget.session.themeMode,
-                            builder: (context, selected, _) =>
-                                AppleSegmentedControl<ThemeMode>(
-                                  items: const [
-                                    (ThemeMode.system, '跟随系统'),
-                                    (ThemeMode.light, '浅色'),
-                                    (ThemeMode.dark, '深色'),
+                    SettingsSection(
+                      title: '界面主题',
+                      footer: '外观偏好仅保存在当前设备上，切换后立即生效。',
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                          child: LayoutBuilder(
+                            builder: (context, bounds) {
+                              final compact =
+                                  bounds.maxWidth < 280 || textScale > 1.45;
+                              if (compact) {
+                                return Column(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
+                                  children: [
+                                    for (
+                                      var i = 0;
+                                      i < _options.length;
+                                      i++
+                                    ) ...[
+                                      if (i > 0) const SizedBox(height: 10),
+                                      _ThemeOptionCard(
+                                        mode: _options[i].mode,
+                                        label: _options[i].label,
+                                        icon: _options[i].icon,
+                                        selected: selected == _options[i].mode,
+                                        enabled: !_saving,
+                                        horizontal: true,
+                                        onTap: () =>
+                                            _setTheme(_options[i].mode),
+                                      ),
+                                    ],
                                   ],
-                                  selected: selected,
-                                  enabled: !_saving,
-                                  onChanged: _setTheme,
-                                ),
+                                );
+                              }
+                              return Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  for (var i = 0; i < _options.length; i++) ...[
+                                    if (i > 0) const SizedBox(width: 10),
+                                    Expanded(
+                                      child: _ThemeOptionCard(
+                                        mode: _options[i].mode,
+                                        label: _options[i].label,
+                                        icon: _options[i].icon,
+                                        selected: selected == _options[i].mode,
+                                        enabled: !_saving,
+                                        onTap: () =>
+                                            _setTheme(_options[i].mode),
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              );
+                            },
                           ),
-                          if (_error != null) ...[
-                            const SizedBox(height: 10),
-                            Semantics(
-                              liveRegion: true,
-                              child: Text(
-                                _error!,
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: colors.error,
+                        ),
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(20, 13, 20, 14),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(top: 1.5),
+                                child: Icon(
+                                  active.icon,
+                                  size: 17,
+                                  color: colors.primary,
                                 ),
                               ),
-                            ),
-                          ],
-                        ],
-                      ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: Text(
+                                  active.description,
+                                  style: TextStyle(
+                                    fontSize: 13,
+                                    height: 1.45,
+                                    color: colors.onSurfaceVariant,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                     ),
+                    if (_error != null) ...[
+                      const SizedBox(height: 12),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Semantics(
+                          liveRegion: true,
+                          child: Text(
+                            _error!,
+                            style: TextStyle(fontSize: 13, color: colors.error),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
-                ),
-              ],
+                );
+              },
             ),
           ),
         ),
       ),
     );
   }
+}
+
+class _ThemeOptionCard extends StatelessWidget {
+  const _ThemeOptionCard({
+    required this.mode,
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.enabled,
+    required this.onTap,
+    this.horizontal = false,
+  });
+
+  final ThemeMode mode;
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final bool enabled;
+  final VoidCallback onTap;
+  final bool horizontal;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final atmo = AppAtmosphere.of(context);
+    final borderColor = selected ? colors.primary : atmo.hairline;
+    final cardFill = selected
+        ? colors.primary.withValues(alpha: 0.08)
+        : atmo.inputFill.withValues(alpha: 0.65);
+    return Semantics(
+      button: true,
+      selected: selected,
+      enabled: enabled,
+      label: label,
+      child: Material(
+        color: cardFill,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(18),
+          side: BorderSide(color: borderColor, width: selected ? 1.6 : 0.9),
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          child: Padding(
+            padding: const EdgeInsets.all(8),
+            child: horizontal
+                ? Row(
+                    children: [
+                      SizedBox(
+                        width: 76,
+                        height: 52,
+                        child: _ThemePreviewGraphic(mode: mode),
+                      ),
+                      const SizedBox(width: 12),
+                      Icon(
+                        icon,
+                        size: 16,
+                        color: selected
+                            ? colors.primary
+                            : colors.onSurfaceVariant,
+                      ),
+                      const SizedBox(width: 6),
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: TextStyle(
+                            fontSize: 14,
+                            fontWeight: selected
+                                ? FontWeight.w600
+                                : FontWeight.w500,
+                            color: colors.onSurface,
+                          ),
+                        ),
+                      ),
+                      _ThemeCheckIndicator(selected: selected),
+                    ],
+                  )
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      SizedBox(
+                        height: 68,
+                        child: _ThemePreviewGraphic(mode: mode),
+                      ),
+                      const SizedBox(height: 9),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 2),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                label,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  fontWeight: selected
+                                      ? FontWeight.w600
+                                      : FontWeight.w500,
+                                  color: selected
+                                      ? colors.primary
+                                      : colors.onSurface,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            _ThemeCheckIndicator(selected: selected),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ThemeCheckIndicator extends StatelessWidget {
+  const _ThemeCheckIndicator({required this.selected});
+  final bool selected;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    if (selected) {
+      return Icon(Icons.check_circle_rounded, size: 16, color: colors.primary);
+    }
+    return Container(
+      width: 15,
+      height: 15,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        border: Border.all(color: colors.outline, width: 1.2),
+      ),
+    );
+  }
+}
+
+class _ThemePreviewGraphic extends StatelessWidget {
+  const _ThemePreviewGraphic({required this.mode});
+  final ThemeMode mode;
+
+  @override
+  Widget build(BuildContext context) {
+    final atmo = AppAtmosphere.of(context);
+    return ExcludeSemantics(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: atmo.hairline, width: 0.8),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(11.2),
+          child: switch (mode) {
+            ThemeMode.light => const _MockChatCanvas(dark: false),
+            ThemeMode.dark => const _MockChatCanvas(dark: true),
+            ThemeMode.system => Stack(
+              fit: StackFit.expand,
+              children: [
+                const _MockChatCanvas(dark: false),
+                ClipRect(
+                  clipper: const _RightHalfClipper(),
+                  child: DecoratedBox(
+                    position: DecorationPosition.foreground,
+                    decoration: const BoxDecoration(
+                      border: Border(
+                        left: BorderSide(color: Color(0x387890AD), width: 0.8),
+                      ),
+                    ),
+                    child: const _MockChatCanvas(dark: true),
+                  ),
+                ),
+              ],
+            ),
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _MockChatCanvas extends StatelessWidget {
+  const _MockChatCanvas({required this.dark});
+  final bool dark;
+
+  @override
+  Widget build(BuildContext context) {
+    final bg = dark
+        ? const [Color(0xFF141B26), Color(0xFF172334)]
+        : const [Color(0xFFF7F6F2), Color(0xFFE9F2FC)];
+    final pill = dark ? const Color(0xE0223042) : const Color(0xEBFFFFFF);
+    final assistant = dark ? const Color(0xE6202D3E) : const Color(0xF5FFFFFF);
+    final user = dark ? const Color(0xFF233E5E) : const Color(0xFFD8EAFC);
+    final accent = dark ? const Color(0xFF6BB0FF) : const Color(0xFF3983DF);
+    final border = dark ? const Color(0x24C8DEF8) : const Color(0xFFDCE6F2);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: bg,
+        ),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(7, 6, 7, 6),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Center(
+              child: Container(
+                width: 22,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: pill,
+                  borderRadius: BorderRadius.circular(99),
+                  border: Border.all(color: border, width: 0.6),
+                ),
+              ),
+            ),
+            const Spacer(),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FractionallySizedBox(
+                widthFactor: 0.62,
+                child: Container(
+                  height: 9,
+                  decoration: BoxDecoration(
+                    color: assistant,
+                    borderRadius: BorderRadius.circular(5),
+                    border: Border.all(color: border, width: 0.6),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(height: 4),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FractionallySizedBox(
+                widthFactor: 0.52,
+                child: Container(
+                  height: 9,
+                  decoration: BoxDecoration(
+                    color: user,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
+                ),
+              ),
+            ),
+            const Spacer(),
+            Container(
+              height: 10,
+              padding: const EdgeInsets.symmetric(horizontal: 2),
+              decoration: BoxDecoration(
+                color: pill,
+                borderRadius: BorderRadius.circular(99),
+                border: Border.all(color: border, width: 0.6),
+              ),
+              child: Align(
+                alignment: Alignment.centerRight,
+                child: Container(
+                  width: 6,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: accent,
+                    shape: BoxShape.circle,
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RightHalfClipper extends CustomClipper<Rect> {
+  const _RightHalfClipper();
+
+  @override
+  Rect getClip(Size size) =>
+      Rect.fromLTRB(size.width * 0.5, 0, size.width, size.height);
+
+  @override
+  bool shouldReclip(covariant CustomClipper<Rect> oldClipper) => false;
 }
 
 // =============================================================================
@@ -744,7 +1300,7 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                           vertical: 16,
                         ),
                         child: Text(
-                          '请先在「连接」中配置并验证后端服务，再开启设备信息采集。',
+                          '请先在「设备配对」中配置并验证后端服务，再开启设备信息采集。',
                           style: TextStyle(
                             fontSize: 13.5,
                             color: colors.onSurfaceVariant,
@@ -763,20 +1319,19 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                               title: '记录前台应用活动',
                               description:
                                   session.screenshots.platform != 'android'
-                                  ? '记录 Wintermute 的页面和前后台切换。'
+                                  ? '记录 Purin 的页面和前后台切换。'
                                   : session.usageEnabled &&
                                         session.usageAccess == 'granted' &&
                                         !session.backgroundUsage
-                                  ? '记录 Wintermute 活动，其他应用时段会在返回时补传。'
-                                  : '记录 Wintermute 活动，切走其他应用时同步名称、起止时间和停留时长。',
+                                  ? '记录 Purin 活动，其他应用时段会在返回时补传。'
+                                  : '记录 Purin 活动，切走其他应用时同步名称、起止时间和停留时长。',
                               source: 'usage',
                               enabled: session.collecting,
                               access: session.usageAccess,
                               lastObservation: session.lastUsageLabel,
                               session: session,
                             ),
-                            if (session.lastUpload != null ||
-                                session.pendingCollectionCount > 0 ||
+                            if (session.pendingCollectionCount > 0 ||
                                 session.collectionError != null)
                               Padding(
                                 padding: const EdgeInsets.fromLTRB(
@@ -788,27 +1343,17 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    if (session.lastUpload != null)
+                                    if (session.pendingCollectionCount > 0)
                                       Text(
-                                        '最近上传 ${session.lastUpload!.replaceFirst('T', ' ').split('.').first}',
+                                        '待上传 ${session.pendingCollectionCount} 条',
                                         style: TextStyle(
                                           color: colors.onSurfaceVariant,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    if (session.pendingCollectionCount > 0)
-                                      Padding(
-                                        padding: const EdgeInsets.only(top: 2),
-                                        child: Text(
-                                          '待上传 ${session.pendingCollectionCount} 条',
-                                          style: TextStyle(
-                                            color: colors.onSurfaceVariant,
-                                            fontSize: 12.5,
-                                          ),
+                                          fontSize: 12.5,
                                         ),
                                       ),
                                     if (session.collectionError != null) ...[
-                                      const SizedBox(height: 4),
+                                      if (session.pendingCollectionCount > 0)
+                                        const SizedBox(height: 4),
                                       Text(
                                         '采集上传失败 · ${session.collectionError}',
                                         style: TextStyle(
@@ -838,16 +1383,6 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                               access: session.locationAccess,
                               lastObservation: session.lastLocationLabel,
                               session: session,
-                            ),
-                            SettingsSwitchTile(
-                              title: '定时采集网络',
-                              subtitle: '随位置记录 Wi-Fi 连接状态和名称。',
-                              value:
-                                  session.locationEnabled &&
-                                  session.networkEnabled,
-                              onChanged: connected && session.locationEnabled
-                                  ? session.setNetworkEnabled
-                                  : null,
                             ),
                             if (session.locationEnabled &&
                                 session.locationAccess == 'granted')
@@ -882,6 +1417,15 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                 ),
                               ),
                           ],
+                        ),
+                        SettingsSwitchTile(
+                          title: '定时采集网络',
+                          subtitle: '随位置记录 Wi-Fi 连接状态和名称。',
+                          value:
+                              session.locationEnabled && session.networkEnabled,
+                          onChanged: connected && session.locationEnabled
+                              ? session.setNetworkEnabled
+                              : null,
                         ),
                       ],
                     ),
@@ -1196,7 +1740,7 @@ class _SignalControl extends StatelessWidget {
       'blocked' when enabled => '需要在系统设置中允许访问。',
       _ when needsAccess =>
         source == 'usage'
-            ? '正在记录 Wintermute 活动。授权使用情况访问权后，会同时记录其他应用的使用时段。'
+            ? '正在记录 Purin 活动。授权使用情况访问权后，会同时记录其他应用的使用时段。'
             : '等待系统授予定位权限。',
       _ => description,
     };

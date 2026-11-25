@@ -1,4 +1,4 @@
-package dev.wintermute.wintermute_mobile
+package dev.purin.purin_mobile
 
 import android.app.AppOpsManager
 import android.app.usage.UsageEvents

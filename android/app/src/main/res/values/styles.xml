@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="launcher_background">#191115</color>
-    <color name="wintermute_canvas">#EEF4FB</color>
-    <color name="wintermute_accent">#3983DF</color>
-    <color name="wintermute_on_accent">#FFFFFF</color>
+    <color name="purin_canvas">#EEF4FB</color>
+    <color name="purin_accent">#3983DF</color>
+    <color name="purin_on_accent">#FFFFFF</color>
     <!-- Older Android versions always draw light navigation icons. -->
-    <color name="wintermute_navigation_bar">@android:color/black</color>
-    <style name="WintermutePlatformTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
+    <color name="purin_navigation_bar">@android:color/black</color>
+    <style name="PurinPlatformTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
     </style>
-    <style name="NormalTheme" parent="WintermutePlatformTheme">
-        <item name="android:colorBackground">@color/wintermute_canvas</item>
-        <item name="android:windowBackground">@color/wintermute_canvas</item>
-        <item name="android:statusBarColor">@color/wintermute_canvas</item>
-        <item name="android:navigationBarColor">@color/wintermute_navigation_bar</item>
-        <item name="android:colorAccent">@color/wintermute_accent</item>
+    <style name="NormalTheme" parent="PurinPlatformTheme">
+        <item name="android:colorBackground">@color/purin_canvas</item>
+        <item name="android:windowBackground">@color/purin_canvas</item>
+        <item name="android:statusBarColor">@color/purin_canvas</item>
+        <item name="android:navigationBarColor">@color/purin_navigation_bar</item>
+        <item name="android:colorAccent">@color/purin_accent</item>
     </style>
     <style name="LaunchTheme" parent="NormalTheme" />
 </resources>

@@ -1,4 +1,4 @@
-package dev.wintermute.wintermute_mobile
+package dev.purin.purin_mobile
 
 /** Times one continuously observed foreground usage interval using the monotonic clock. */
 internal class VisitScreenshotTimer {

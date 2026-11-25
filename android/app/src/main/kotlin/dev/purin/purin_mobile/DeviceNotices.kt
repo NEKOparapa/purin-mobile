@@ -1,4 +1,4 @@
-package dev.wintermute.wintermute_mobile
+package dev.purin.purin_mobile
 
 import android.Manifest
 import android.app.NotificationChannel
@@ -23,8 +23,8 @@ import io.flutter.plugin.common.MethodChannel
 import java.security.MessageDigest
 
 internal object DeviceNotices {
-    const val CHANNEL = "dev.wintermute/user_notifications"
-    const val OPEN = "dev.wintermute.OPEN_NOTICE"
+    const val CHANNEL = "dev.purin/user_notifications"
+    const val OPEN = "dev.purin.OPEN_NOTICE"
     private const val USER_CHANNEL = "agent_reminders"
     private const val JOB = 58210
     @Volatile var foreground = false
@@ -91,7 +91,7 @@ internal object DeviceNotices {
             val launch =
                 Intent(context, MainActivity::class.java)
                     .setAction(OPEN)
-                    .setData(android.net.Uri.parse("wintermute://notification/" + key))
+                    .setData(android.net.Uri.parse("purin://notification/" + key))
                     .putExtra("scope", scope)
                     .putExtra("id", id)
                     .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)

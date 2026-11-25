@@ -2,14 +2,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wintermute_mobile/data/agent_api.dart';
-import 'package:wintermute_mobile/data/mobile_session.dart';
-import 'package:wintermute_mobile/data/mobile_store.dart';
-import 'package:wintermute_mobile/screens/chat_screen.dart';
-import 'package:wintermute_mobile/screens/connection_screen.dart';
-import 'package:wintermute_mobile/screens/schedule_screen.dart';
-import 'package:wintermute_mobile/widgets/app_theme.dart';
-import 'package:wintermute_mobile/widgets/mascot_island.dart';
+import 'package:purin_mobile/data/agent_api.dart';
+import 'package:purin_mobile/data/mobile_session.dart';
+import 'package:purin_mobile/data/mobile_store.dart';
+import 'package:purin_mobile/screens/chat_screen.dart';
+import 'package:purin_mobile/screens/connection_screen.dart';
+import 'package:purin_mobile/screens/schedule_screen.dart';
+import 'package:purin_mobile/widgets/app_theme.dart';
+import 'package:purin_mobile/widgets/chat_bubble.dart';
+import 'package:purin_mobile/widgets/mascot_island.dart';
 
 class _Session extends MobileSession {
   _Session([AgentApi? api]) : super(DeviceStore(), api ?? AgentApi()) {
@@ -31,6 +32,9 @@ class _Session extends MobileSession {
     List<Json> documents = const [],
     Connection? expectedConnection,
   }) async => add('user', text, status: 'queued');
+
+  @override
+  Future<void> setTheme(ThemeMode mode) async => themeMode.value = mode;
 
   void add(String role, String text, {String? status}) {
     messages.add({
@@ -116,7 +120,7 @@ void main() {
   testWidgets(
     'Android 系统胶囊沿用同一会话更新今日摘要，点系统卡片恢复聊天并清理通知',
     (tester) async {
-      const channel = MethodChannel('dev.wintermute/island');
+      const channel = MethodChannel('dev.purin/island');
       final calls = <MethodCall>[];
       final promotion = Completer<String>();
       final messenger = tester.binding.defaultBinaryMessenger;
@@ -128,12 +132,12 @@ void main() {
       addTearDown(() => messenger.setMockMethodCallHandler(channel, null));
       await _openChat(tester, api: _IslandApi());
       await tester.enterText(find.byType(TextField), '原草稿');
-      await tester.tap(find.text('Wintermute'));
+      await tester.tap(find.text('Purin'));
       final head = find.image(
         const AssetImage('assets/mascot/island-head@3x.png'),
       );
       void expectOriginalFrame() {
-        expect(find.text('Wintermute'), findsOneWidget);
+        expect(find.text('Purin'), findsOneWidget);
         expect(find.byType(ScheduleScreen), findsNothing);
         expect(head, findsNothing);
         expect(find.byIcon(Icons.bedtime_outlined), findsNothing);
@@ -173,7 +177,7 @@ void main() {
       '${platform.name} 头像收起、胶囊显示今日通知和安排，再点返回原草稿',
       (tester) async {
         if (platform == TargetPlatform.android) {
-          const channel = MethodChannel('dev.wintermute/island');
+          const channel = MethodChannel('dev.purin/island');
           final messenger = tester.binding.defaultBinaryMessenger;
           messenger.setMockMethodCallHandler(
             channel,
@@ -191,7 +195,7 @@ void main() {
         session.add('user', '看看今天', status: 'queued');
         await tester.pump();
         await tester.enterText(find.byType(TextField), '未发送的草稿');
-        await tester.tap(find.text('Wintermute'));
+        await tester.tap(find.text('Purin'));
         await tester.pump();
         await tester.pump();
         await tester.pump(const Duration(milliseconds: 500));
@@ -432,6 +436,13 @@ void main() {
     await tester.tap(find.byTooltip('设置'));
     await tester.pumpAndSettle();
     expect(find.byType(ConnectionScreen), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(ConnectionScreen),
+        matching: find.byType(Divider),
+      ),
+      findsOneWidget,
+    );
     expect(find.text('记忆'), findsNothing);
     expect(find.text('通知'), findsNothing);
     await tester.binding.handlePopRoute();
@@ -458,7 +469,39 @@ void main() {
     await tester.tap(find.byTooltip('设置'));
     await tester.pumpAndSettle();
     expect(find.byType(ConnectionScreen), findsOneWidget);
+    expect(
+      find.descendant(
+        of: find.byType(ConnectionScreen),
+        matching: find.byType(Divider),
+      ),
+      findsNWidgets(2),
+    );
     await tester.ensureVisible(find.text('记忆'));
+    await tester.tap(find.text('外观'));
+    await tester.pumpAndSettle();
+    expect(find.text('界面主题'), findsOneWidget);
+    await tester.tap(find.text('深色'));
+    await tester.pumpAndSettle();
+    expect(
+      find.text('始终使用柔和低眩光的夜空深色背景与深色卡片表面。'),
+      findsOneWidget,
+    );
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('设备配对'));
+    await tester.pumpAndSettle();
+    expect(find.text('当前连接'), findsOneWidget);
+    await tester.tap(find.text('编辑连接'));
+    await tester.pumpAndSettle();
+    expect(find.text('服务与凭据'), findsOneWidget);
+    await tester.tap(find.text('配对链接'));
+    await tester.pumpAndSettle();
+    expect(find.text('扫码配对'), findsOneWidget);
+    await tester.tap(find.text('取消'));
+    await tester.pumpAndSettle();
+    expect(find.text('当前连接'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
     await tester.tap(find.text('记忆'));
     await tester.pumpAndSettle();
     expect(find.text('示例记忆'), findsOneWidget);
@@ -475,10 +518,16 @@ void main() {
     await tester.tap(find.byTooltip('发送消息'));
     await tester.pump();
     expect(_pose('thinking'), findsOneWidget);
+    expect(find.byType(AssistantThinkingBubble), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byType(AssistantThinkingBubble)).dx,
+      lessThan(tester.getTopLeft(find.text('晚餐吃什么？')).dx),
+    );
     expect(find.text('今天过得怎么样？'), findsNothing);
     session.add('assistant', '来一碗热汤面吧。');
     await tester.pump();
     expect(_pose('speaking'), findsOneWidget);
+    expect(find.byType(AssistantThinkingBubble), findsNothing);
     expect(
       tester.getTopLeft(find.text('来一碗热汤面吧。')).dx,
       lessThan(tester.getTopLeft(find.text('晚餐吃什么？')).dx),

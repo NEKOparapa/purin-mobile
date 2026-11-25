@@ -1,16 +1,16 @@
-// Run by Wintermute/tools/check_clients.py using the standalone Dart SDK.
+// Run by Purin/tools/check_clients.py using the standalone Dart SDK.
 import 'dart:convert';
 import 'dart:io';
-import 'package:wintermute_mobile/data/agent_api.dart';
-import 'package:wintermute_mobile/data/chat_history.dart';
-import 'package:wintermute_mobile/data/question.dart';
+import 'package:purin_mobile/data/agent_api.dart';
+import 'package:purin_mobile/data/chat_history.dart';
+import 'package:purin_mobile/data/question.dart';
 
 void check(bool condition, String message) {
   if (!condition) throw StateError(message);
 }
 
 Future<void> main() async {
-  final url = Platform.environment['WINTERMUTE_TEST_URL'];
+  final url = Platform.environment['PURIN_TEST_URL'];
   check(url != null, 'Run through the backend tools/check_clients.py fixture');
   final connection = Connection(url!, 'mobile-test', 'test-token-mobile-test');
   // An API suffix used as a service root used to produce /v1/v1/... and HTTP 404.
@@ -81,10 +81,10 @@ Future<void> main() async {
       'id': '11111111-1111-4111-8111-111111111111',
       'at': DateTime.now().millisecondsSinceEpoch,
       'app': 'Contract Test',
-      'package': 'dev.wintermute.test',
+      'package': 'dev.purin.test',
     },
     'android',
-    base64Decode(Platform.environment['WINTERMUTE_TEST_JPEG']!),
+    base64Decode(Platform.environment['PURIN_TEST_JPEG']!),
   );
   check(screenshot['event_id'] is String, 'Screenshot upload failed');
 

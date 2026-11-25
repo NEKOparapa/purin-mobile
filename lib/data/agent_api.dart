@@ -124,7 +124,7 @@ class ApiError implements Exception {
       : 'HTTP $status · $code';
 }
 
-final _pairingFragment = RegExp(r'^wm-pair=([0-9]{5}-?[0-9]{5})$');
+final _pairingFragment = RegExp(r'^purin-pair=([0-9]{5}-?[0-9]{5})$');
 
 ({String url, String code})? pairingAddress(String input) {
   final uri = Uri.tryParse(input.trim());

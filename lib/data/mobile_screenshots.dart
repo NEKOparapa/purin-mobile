@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'agent_api.dart';
 
 class MobileScreenshots {
-  static const _channel = MethodChannel('dev.wintermute/screenshots');
+  static const _channel = MethodChannel('dev.purin/screenshots');
   static const intervals = [60, 300, 900];
 
   String get platform => Platform.operatingSystem;

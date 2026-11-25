@@ -89,13 +89,13 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
-            VALUE "CompanyName", "dev.wintermute" "\0"
-            VALUE "FileDescription", "wintermute_mobile" "\0"
+            VALUE "CompanyName", "dev.purin" "\0"
+            VALUE "FileDescription", "purin_mobile" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "wintermute_mobile" "\0"
-            VALUE "LegalCopyright", "Copyright (C) 2026 dev.wintermute. All rights reserved." "\0"
-            VALUE "OriginalFilename", "wintermute_mobile.exe" "\0"
-            VALUE "ProductName", "wintermute_mobile" "\0"
+            VALUE "InternalName", "purin_mobile" "\0"
+            VALUE "LegalCopyright", "Copyright (C) 2026 dev.purin. All rights reserved." "\0"
+            VALUE "OriginalFilename", "purin_mobile.exe" "\0"
+            VALUE "ProductName", "purin_mobile" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

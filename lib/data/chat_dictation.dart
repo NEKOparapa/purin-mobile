@@ -27,7 +27,7 @@ class ChatDictation {
     StreamSubscription<RecordStop>? events;
     try {
       if (!await recorder.hasPermission()) {
-        throw const FormatException('无法访问麦克风，请在系统设置中允许 Wintermute 使用麦克风');
+        throw const FormatException('无法访问麦克风，请在系统设置中允许 Purin 使用麦克风');
       }
       if (isCancelled) return null;
       final dir = await getTemporaryDirectory();

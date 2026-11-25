@@ -1,4 +1,4 @@
-package dev.wintermute.wintermute_mobile
+package dev.purin.purin_mobile
 
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue

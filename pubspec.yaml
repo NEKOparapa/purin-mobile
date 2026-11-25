@@ -1,5 +1,5 @@
-name: wintermute_mobile
-description: Flutter mobile client for Wintermute Agent conversations and activity capture.
+name: purin_mobile
+description: Flutter mobile client for Purin Agent conversations and activity capture.
 publish_to: none
 version: 0.1.0+1
 

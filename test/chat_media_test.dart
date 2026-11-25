@@ -2,10 +2,10 @@ import 'dart:convert';
 import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image/image.dart' as img;
-import 'package:wintermute_mobile/data/agent_api.dart';
-import 'package:wintermute_mobile/data/chat_attachment.dart';
-import 'package:wintermute_mobile/data/mobile_session.dart';
-import 'package:wintermute_mobile/data/mobile_store.dart';
+import 'package:purin_mobile/data/agent_api.dart';
+import 'package:purin_mobile/data/chat_attachment.dart';
+import 'package:purin_mobile/data/mobile_session.dart';
+import 'package:purin_mobile/data/mobile_store.dart';
 
 class _Store extends DeviceStore {
   Json saved = {};

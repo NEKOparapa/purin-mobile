@@ -11,7 +11,7 @@ final class IOSNotices: NSObject, UNUserNotificationCenterDelegate, UIDocumentPi
   private var exportResult: FlutterResult?
 
   func register(with messenger: FlutterBinaryMessenger) {
-    let channel = FlutterMethodChannel(name: "dev.wintermute/user_notifications", binaryMessenger: messenger)
+    let channel = FlutterMethodChannel(name: "dev.purin/user_notifications", binaryMessenger: messenger)
     self.channel = channel
     channel.setMethodCallHandler { [weak self] call, result in
       guard let self else { return result(FlutterMethodNotImplemented) }
@@ -64,7 +64,7 @@ final class IOSNotices: NSObject, UNUserNotificationCenterDelegate, UIDocumentPi
   private func present(key: String, scope: String, id: String,
                        args: [String: Any], result: @escaping FlutterResult) {
     let defaults = UserDefaults.standard
-    let receipts = "wintermute.notice.receipts"
+    let receipts = "purin.notice.receipts"
     let seen = defaults.stringArray(forKey: receipts) ?? []
     guard !seen.contains(key) else { return result(false) }
     center.getNotificationSettings { settings in

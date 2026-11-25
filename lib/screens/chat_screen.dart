@@ -161,76 +161,74 @@ class _ChatScreenState extends State<ChatScreen> {
           0,
           double.infinity,
         );
-    return AtmosphereBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        body: SafeArea(
-          top: false,
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 720),
-                  child: ListenableBuilder(
-                    listenable: session,
-                    builder: (context, _) => ValueListenableBuilder(
-                      valueListenable: _openedNotice,
-                      builder: (context, notice, _) => ScheduleScreen(
-                        key: ObjectKey(session.connection),
-                        api: session.api,
-                        connection: session.connection,
-                        inbox: session.inbox,
-                        onSettings: _settings,
-                        topInset:
-                            safeTop + toolbarHeight + FadingPageHeader.feather,
-                        openedNotice: notice?.scope == session.connection?.scope
-                            ? notice?.notice
-                            : null,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: FadingPageHeader(
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(8, safeTop, 8, 0),
-                    child: SizedBox(
-                      height: toolbarHeight,
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          TextButton.icon(
-                            onPressed: () => Navigator.pop(context),
-                            icon: const Icon(Icons.chevron_left_rounded),
-                            label: const Text('对话'),
-                          ),
-                          _settingsButton(),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (islandId != null)
-                Positioned.fill(
-                  top: safeTop,
-                  child: ListenableBuilder(
-                    listenable: session,
-                    builder: (context, _) => MascotIsland(
+    return Scaffold(
+      backgroundColor: Theme.of(context).colorScheme.surface,
+      body: SafeArea(
+        top: false,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 720),
+                child: ListenableBuilder(
+                  listenable: session,
+                  builder: (context, _) => ValueListenableBuilder(
+                    valueListenable: _openedNotice,
+                    builder: (context, notice, _) => ScheduleScreen(
                       key: ObjectKey(session.connection),
-                      islandId: islandId,
-                      session: session,
-                      onReturn: _returnToChat,
+                      api: session.api,
+                      connection: session.connection,
+                      inbox: session.inbox,
+                      onSettings: _settings,
+                      topInset:
+                          safeTop + toolbarHeight + FadingPageHeader.feather,
+                      openedNotice: notice?.scope == session.connection?.scope
+                          ? notice?.notice
+                          : null,
                     ),
                   ),
                 ),
-            ],
-          ),
+              ),
+            ),
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              child: FadingPageHeader(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(8, safeTop, 8, 0),
+                  child: SizedBox(
+                    height: toolbarHeight,
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        TextButton.icon(
+                          onPressed: () => Navigator.pop(context),
+                          icon: const Icon(Icons.chevron_left_rounded),
+                          label: const Text('对话'),
+                        ),
+                        _settingsButton(),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+            if (islandId != null)
+              Positioned.fill(
+                top: safeTop,
+                child: ListenableBuilder(
+                  listenable: session,
+                  builder: (context, _) => MascotIsland(
+                    key: ObjectKey(session.connection),
+                    islandId: islandId,
+                    session: session,
+                    onReturn: _returnToChat,
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -302,18 +300,23 @@ class _ChatScreenState extends State<ChatScreen> {
         listenable: session,
         builder: (context, _) {
           final messages = session.messages;
+          final last = messages.lastOrNull;
+          final thinking =
+              last?['role'] == 'user' &&
+              const {'sending', 'queued', 'running'}.contains(last?['status']);
+          final itemCount = messages.length + (thinking ? 1 : 0);
           final scope = session.connection?.scope;
           if (_systemFold case final fold?
               when fold.connection != session.connection) {
             _systemFold = null;
           }
-          if (scope != _scope || messages.length != _lastCount) {
+          if (scope != _scope || itemCount != _lastCount) {
             final follow =
                 scope != _scope ||
                 !_scroll.hasClients ||
                 _scroll.position.extentAfter < 90;
             _scope = scope;
-            _lastCount = messages.length;
+            _lastCount = itemCount;
             if (follow && chatVisible) {
               WidgetsBinding.instance.addPostFrameCallback((_) {
                 if (mounted && _scroll.hasClients) {
@@ -335,6 +338,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       constraints: const BoxConstraints(maxWidth: 720),
                       child: _chatPane(
                         session,
+                        thinking: thinking,
                         keyboard: keyboard,
                         topInset: topInset,
                       ),
@@ -351,6 +355,7 @@ class _ChatScreenState extends State<ChatScreen> {
                           child: _header(
                             session,
                             messages,
+                            thinking,
                             compact,
                             toolbarHeight,
                           ),
@@ -383,14 +388,11 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _header(
     MobileSession session,
     List<Json> messages,
+    bool thinking,
     bool compact,
     double toolbarHeight,
   ) {
     final scope = session.connection?.scope;
-    final last = messages.lastOrNull;
-    final thinking =
-        last?['role'] == 'user' &&
-        const {'sending', 'queued', 'running'}.contains(last?['status']);
     final reply = messages.reversed
         .where((m) => m['role'] == 'assistant')
         .firstOrNull;
@@ -428,6 +430,7 @@ class _ChatScreenState extends State<ChatScreen> {
 
   Widget _chatPane(
     MobileSession session, {
+    required bool thinking,
     required bool keyboard,
     required double topInset,
   }) {
@@ -452,6 +455,7 @@ class _ChatScreenState extends State<ChatScreen> {
             builder: (context, bounds) => _chatContent(
               session,
               messages,
+              thinking: thinking,
               welcome: welcome,
               keyboard: keyboard,
               bounds: bounds,
@@ -466,6 +470,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _chatContent(
     MobileSession session,
     List<Json> messages, {
+    required bool thinking,
     required bool welcome,
     required bool keyboard,
     required BoxConstraints bounds,
@@ -486,6 +491,7 @@ class _ChatScreenState extends State<ChatScreen> {
               : _buildChatBody(
                   session: session,
                   messages: messages,
+                  thinking: thinking,
                   topInset: listTopInset,
                 ),
         ),
@@ -549,6 +555,7 @@ class _ChatScreenState extends State<ChatScreen> {
   Widget _buildChatBody({
     required MobileSession session,
     required List<Json> messages,
+    required bool thinking,
     required double topInset,
   }) {
     return LayoutBuilder(
@@ -561,8 +568,17 @@ class _ChatScreenState extends State<ChatScreen> {
           10,
         ),
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        itemCount: messages.length,
+        itemCount: messages.length + (thinking ? 1 : 0),
         itemBuilder: (context, index) {
+          if (index == messages.length) {
+            return const Padding(
+              padding: EdgeInsets.only(bottom: 16),
+              child: Align(
+                alignment: Alignment.centerLeft,
+                child: AssistantThinkingBubble(),
+              ),
+            );
+          }
           final entry = messages[index];
           final prev = index > 0 ? messages[index - 1] : null;
           final stamp = _timestampHeader(entry, prev);
@@ -884,7 +900,7 @@ class _Message extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Semantics(
-                label: user ? '你' : 'Wintermute',
+                label: user ? '你' : 'Purin',
                 child: ChatBubble(
                   fromUser: user,
                   child: Column(

@@ -22,7 +22,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE"/>
     <application
         android:allowBackup="false"
-        android:label="Wintermute"
+        android:label="Purin"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher">
@@ -50,7 +50,7 @@
         </activity>
         <receiver android:name=".LocationReceiver" android:exported="false"/>
         <service android:name=".ConnectorNotificationListener" android:exported="false"
-            android:label="Wintermute 通知连接器"
+            android:label="Purin 通知连接器"
             android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
             <intent-filter>
                 <action android:name="android.service.notification.NotificationListenerService"/>

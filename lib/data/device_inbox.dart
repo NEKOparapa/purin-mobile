@@ -52,7 +52,7 @@ class DeviceNotice {
   final List<NoticeFile> files;
 }
 
-const noticeChannel = MethodChannel('dev.wintermute/user_notifications');
+const noticeChannel = MethodChannel('dev.purin/user_notifications');
 
 String _segment(String value) {
   if (value.isEmpty ||
@@ -353,7 +353,7 @@ class DeviceInbox extends ChangeNotifier {
       if (file.size < 0 || file.size > 8 * 1024 * 1024) {
         throw const FormatException('附件大小超出限制');
       }
-      final dir = await Directory.systemTemp.createTemp('wintermute-notice-');
+      final dir = await Directory.systemTemp.createTemp('purin-notice-');
       final name = file.name
           .split(RegExp(r'[/\\]'))
           .last

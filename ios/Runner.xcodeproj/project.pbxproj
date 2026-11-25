@@ -10,10 +10,10 @@
 		BC7A9601000000000000000A /* IslandAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC7A96010000000000000001 /* IslandAttributes.swift */; };
 		BC7A9601000000000000000B /* IslandAttributes.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC7A96010000000000000001 /* IslandAttributes.swift */; };
 		BC7A9601000000000000000C /* IslandActivityHost.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC7A96010000000000000002 /* IslandActivityHost.swift */; };
-		BC7A9601000000000000000D /* WintermuteIsland.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC7A96010000000000000003 /* WintermuteIsland.swift */; };
+		BC7A9601000000000000000D /* PurinIsland.swift in Sources */ = {isa = PBXBuildFile; fileRef = BC7A96010000000000000003 /* PurinIsland.swift */; };
 		BC7A9601000000000000000E /* island-head@3x.png in Resources */ = {isa = PBXBuildFile; fileRef = BC7A96010000000000000005 /* island-head@3x.png */; };
-		B19A53F10000000000000012 /* WintermuteBroadcast.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B19A53F10000000000000008 /* WintermuteBroadcast.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
-		BC7A96010000000000000012 /* WintermuteIsland.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = BC7A96010000000000000008 /* WintermuteIsland.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		B19A53F10000000000000012 /* PurinBroadcast.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = B19A53F10000000000000008 /* PurinBroadcast.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
+		BC7A96010000000000000012 /* PurinIsland.appex in Embed App Extensions */ = {isa = PBXBuildFile; fileRef = BC7A96010000000000000008 /* PurinIsland.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		B19A53F10000000000000011 /* ScreenshotSampler.swift in Sources */ = {isa = PBXBuildFile; fileRef = B19A53F10000000000000002 /* ScreenshotSampler.swift */; };
 		B19A53F10000000000000010 /* ScreenshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B19A53F10000000000000001 /* ScreenshotStore.swift */; };
 		B19A53F1000000000000000F /* ScreenCaptureSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = B19A53F10000000000000005 /* ScreenCaptureSession.swift */; };
@@ -38,12 +38,12 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
-		B19A53F1000000000000001D /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = 97C146E61CF9000F007C117D; proxyType = 1; remoteGlobalIDString = B19A53F10000000000000018; remoteInfo = WintermuteBroadcast; };
-		BC7A9601000000000000001D /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = 97C146E61CF9000F007C117D; proxyType = 1; remoteGlobalIDString = BC7A96010000000000000018; remoteInfo = WintermuteIsland; };
+		B19A53F1000000000000001D /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = 97C146E61CF9000F007C117D; proxyType = 1; remoteGlobalIDString = B19A53F10000000000000018; remoteInfo = PurinBroadcast; };
+		BC7A9601000000000000001D /* PBXContainerItemProxy */ = {isa = PBXContainerItemProxy; containerPortal = 97C146E61CF9000F007C117D; proxyType = 1; remoteGlobalIDString = BC7A96010000000000000018; remoteInfo = PurinIsland; };
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
-		B19A53F10000000000000017 /* Embed App Extensions */ = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = (B19A53F10000000000000012 /* WintermuteBroadcast.appex in Embed App Extensions */, BC7A96010000000000000012 /* WintermuteIsland.appex in Embed App Extensions */, ); name = "Embed App Extensions"; runOnlyForDeploymentPostprocessing = 0; };
+		B19A53F10000000000000017 /* Embed App Extensions */ = {isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 13; files = (B19A53F10000000000000012 /* PurinBroadcast.appex in Embed App Extensions */, BC7A96010000000000000012 /* PurinIsland.appex in Embed App Extensions */, ); name = "Embed App Extensions"; runOnlyForDeploymentPostprocessing = 0; };
 		9705A1C41CF9048500538489 /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
 			buildActionMask = 2147483647;
@@ -59,11 +59,11 @@
 /* Begin PBXFileReference section */
 		BC7A96010000000000000001 /* IslandAttributes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "IslandAttributes.swift"; sourceTree = "<group>"; };
 		BC7A96010000000000000002 /* IslandActivityHost.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "IslandActivityHost.swift"; sourceTree = "<group>"; };
-		BC7A96010000000000000003 /* WintermuteIsland.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "WintermuteIsland.swift"; sourceTree = "<group>"; };
+		BC7A96010000000000000003 /* PurinIsland.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "PurinIsland.swift"; sourceTree = "<group>"; };
 		BC7A96010000000000000004 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = "Info.plist"; sourceTree = "<group>"; };
 		BC7A96010000000000000005 /* island-head@3x.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "../../assets/mascot/island-head@3x.png"; sourceTree = "<group>"; };
-		B19A53F10000000000000008 /* WintermuteBroadcast.appex */ = {isa = PBXFileReference; lastKnownFileType = wrapper.app-extension; path = WintermuteBroadcast.appex; sourceTree = BUILT_PRODUCTS_DIR; };
-		BC7A96010000000000000008 /* WintermuteIsland.appex */ = {isa = PBXFileReference; lastKnownFileType = wrapper.app-extension; path = WintermuteIsland.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B19A53F10000000000000008 /* PurinBroadcast.appex */ = {isa = PBXFileReference; lastKnownFileType = wrapper.app-extension; path = PurinBroadcast.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		BC7A96010000000000000008 /* PurinIsland.appex */ = {isa = PBXFileReference; lastKnownFileType = wrapper.app-extension; path = PurinIsland.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		B19A53F10000000000000007 /* Broadcast.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Broadcast.entitlements; sourceTree = "<group>"; };
 		B19A53F10000000000000006 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		B19A53F10000000000000005 /* ScreenCaptureSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ScreenCaptureSession.swift; sourceTree = "<group>"; };
@@ -137,8 +137,8 @@
 			isa = PBXGroup;
 			children = (
 				97C146EE1CF9000F007C117D /* Runner.app */,
-				B19A53F10000000000000008 /* WintermuteBroadcast.appex */,
-				BC7A96010000000000000008 /* WintermuteIsland.appex */,
+				B19A53F10000000000000008 /* PurinBroadcast.appex */,
+				BC7A96010000000000000008 /* PurinIsland.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -171,26 +171,26 @@
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-		B19A53F10000000000000018 /* WintermuteBroadcast */ = {
+		B19A53F10000000000000018 /* PurinBroadcast */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = B19A53F10000000000000019 /* Build configuration list for WintermuteBroadcast */;
+			buildConfigurationList = B19A53F10000000000000019 /* Build configuration list for PurinBroadcast */;
 			buildPhases = (B19A53F10000000000000016 /* Sources */, );
 			buildRules = ();
 			dependencies = ();
-			name = WintermuteBroadcast;
-			productName = WintermuteBroadcast;
-			productReference = B19A53F10000000000000008 /* WintermuteBroadcast.appex */;
+			name = PurinBroadcast;
+			productName = PurinBroadcast;
+			productReference = B19A53F10000000000000008 /* PurinBroadcast.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
-		BC7A96010000000000000018 /* WintermuteIsland */ = {
+		BC7A96010000000000000018 /* PurinIsland */ = {
 			isa = PBXNativeTarget;
-			buildConfigurationList = BC7A96010000000000000019 /* Build configuration list for WintermuteIsland */;
+			buildConfigurationList = BC7A96010000000000000019 /* Build configuration list for PurinIsland */;
 			buildPhases = (BC7A96010000000000000016 /* Sources */, BC7A96010000000000000013 /* Resources */, );
 			buildRules = ();
 			dependencies = ();
-			name = WintermuteIsland;
-			productName = WintermuteIsland;
-			productReference = BC7A96010000000000000008 /* WintermuteIsland.appex */;
+			name = PurinIsland;
+			productName = PurinIsland;
+			productReference = BC7A96010000000000000008 /* PurinIsland.appex */;
 			productType = "com.apple.product-type.app-extension";
 		};
 		97C146ED1CF9000F007C117D /* Runner */ = {
@@ -252,8 +252,8 @@
 			projectRoot = "";
 			targets = (
 				97C146ED1CF9000F007C117D /* Runner */,
-				B19A53F10000000000000018 /* WintermuteBroadcast */,
-				BC7A96010000000000000018 /* WintermuteIsland */,
+				B19A53F10000000000000018 /* PurinBroadcast */,
+				BC7A96010000000000000018 /* PurinIsland */,
 			);
 		};
 /* End PBXProject section */
@@ -335,8 +335,8 @@
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
-		B19A53F1000000000000001E /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = B19A53F10000000000000018 /* WintermuteBroadcast */; targetProxy = B19A53F1000000000000001D /* PBXContainerItemProxy */; };
-		BC7A9601000000000000001E /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = BC7A96010000000000000018 /* WintermuteIsland */; targetProxy = BC7A9601000000000000001D /* PBXContainerItemProxy */; };
+		B19A53F1000000000000001E /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = B19A53F10000000000000018 /* PurinBroadcast */; targetProxy = B19A53F1000000000000001D /* PBXContainerItemProxy */; };
+		BC7A9601000000000000001E /* PBXTargetDependency */ = {isa = PBXTargetDependency; target = BC7A96010000000000000018 /* PurinIsland */; targetProxy = BC7A9601000000000000001D /* PBXContainerItemProxy */; };
 /* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
@@ -369,7 +369,7 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				INFOPLIST_FILE = Broadcast/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
-				PRODUCT_BUNDLE_IDENTIFIER = dev.wintermute.wintermuteMobile.Broadcast;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.purin.purinMobile.Broadcast;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
@@ -386,7 +386,7 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				INFOPLIST_FILE = Island/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
-				PRODUCT_BUNDLE_IDENTIFIER = dev.wintermute.wintermuteMobile.Island;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.purin.purinMobile.Island;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
@@ -403,7 +403,7 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				INFOPLIST_FILE = Broadcast/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
-				PRODUCT_BUNDLE_IDENTIFIER = dev.wintermute.wintermuteMobile.Broadcast;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.purin.purinMobile.Broadcast;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
@@ -420,7 +420,7 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				INFOPLIST_FILE = Island/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
-				PRODUCT_BUNDLE_IDENTIFIER = dev.wintermute.wintermuteMobile.Island;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.purin.purinMobile.Island;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
@@ -437,7 +437,7 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				INFOPLIST_FILE = Broadcast/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
-				PRODUCT_BUNDLE_IDENTIFIER = dev.wintermute.wintermuteMobile.Broadcast;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.purin.purinMobile.Broadcast;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
@@ -454,7 +454,7 @@
 				CURRENT_PROJECT_VERSION = "$(FLUTTER_BUILD_NUMBER)";
 				INFOPLIST_FILE = Island/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = ("$(inherited)", "@executable_path/Frameworks", "@executable_path/../../Frameworks", );
-				PRODUCT_BUNDLE_IDENTIFIER = dev.wintermute.wintermuteMobile.Island;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.purin.purinMobile.Island;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SKIP_INSTALL = YES;
 				SWIFT_VERSION = 5.0;
@@ -527,7 +527,7 @@
 					"@executable_path/Frameworks",
 				);
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.wintermute.wintermuteMobile;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.purin.purinMobile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -660,7 +660,7 @@
 					"@executable_path/Frameworks",
 				);
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.wintermute.wintermuteMobile;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.purin.purinMobile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
@@ -683,7 +683,7 @@
 					"@executable_path/Frameworks",
 				);
 				CODE_SIGN_ENTITLEMENTS = Runner/Runner.entitlements;
-				PRODUCT_BUNDLE_IDENTIFIER = dev.wintermute.wintermuteMobile;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.purin.purinMobile;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_OBJC_BRIDGING_HEADER = "Runner/Runner-Bridging-Header.h";
 				SWIFT_VERSION = 5.0;
@@ -694,8 +694,8 @@
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-		B19A53F10000000000000019 /* Build configuration list for WintermuteBroadcast */ = {isa = XCConfigurationList; buildConfigurations = (B19A53F1000000000000001A /* Debug */, B19A53F1000000000000001B /* Release */, B19A53F1000000000000001C /* Profile */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
-		BC7A96010000000000000019 /* Build configuration list for WintermuteIsland */ = {isa = XCConfigurationList; buildConfigurations = (BC7A9601000000000000001A /* Debug */, BC7A9601000000000000001B /* Release */, BC7A9601000000000000001C /* Profile */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		B19A53F10000000000000019 /* Build configuration list for PurinBroadcast */ = {isa = XCConfigurationList; buildConfigurations = (B19A53F1000000000000001A /* Debug */, B19A53F1000000000000001B /* Release */, B19A53F1000000000000001C /* Profile */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		BC7A96010000000000000019 /* Build configuration list for PurinIsland */ = {isa = XCConfigurationList; buildConfigurations = (BC7A9601000000000000001A /* Debug */, BC7A9601000000000000001B /* Release */, BC7A9601000000000000001C /* Profile */, ); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
 		97C146E91CF9000F007C117D /* Build configuration list for PBXProject "Runner" */ = {
 			isa = XCConfigurationList;
 			buildConfigurations = (

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="wintermute_canvas">#131A24</color>
-    <color name="wintermute_accent">#6BB0FF</color>
-    <color name="wintermute_on_accent">#081728</color>
-    <style name="WintermutePlatformTheme" parent="@android:style/Theme.Material.NoActionBar" />
+    <color name="purin_canvas">#131A24</color>
+    <color name="purin_accent">#6BB0FF</color>
+    <color name="purin_on_accent">#081728</color>
+    <style name="PurinPlatformTheme" parent="@android:style/Theme.Material.NoActionBar" />
 </resources>

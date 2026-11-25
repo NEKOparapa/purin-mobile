@@ -1,4 +1,4 @@
-package dev.wintermute.wintermute_mobile
+package dev.purin.purin_mobile
 
 import android.Manifest
 import android.content.ActivityNotFoundException
@@ -27,15 +27,15 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         connectors = AndroidConnectorHost(this).also { host ->
-            connectorChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.wintermute/android_connectors")
+            connectorChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.purin/android_connectors")
                 .also { it.setMethodCallHandler(host::handle) }
         }
         val noticeChannel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, DeviceNotices.CHANNEL)
         notices = NoticeActions(this, noticeChannel).also { noticeChannel.setMethodCallHandler(it::handle) }
-        island = IslandNotifications(this, MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.wintermute/island"))
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.wintermute/mobile_signals")
+        island = IslandNotifications(this, MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.purin/island"))
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.purin/mobile_signals")
             .setMethodCallHandler(::onSignalMethod)
-        val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.wintermute/screenshots")
+        val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "dev.purin/screenshots")
         shotChannel = channel
         signals.screenshots.channel = channel
         channel.setMethodCallHandler(::onScreenshotMethod)

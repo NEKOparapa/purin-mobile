@@ -1,4 +1,4 @@
-package dev.wintermute.wintermute_mobile
+package dev.purin.purin_mobile
 
 import android.app.Notification
 import android.app.NotificationChannel
@@ -18,7 +18,7 @@ import java.util.Calendar
 /** A user-started session tracking today's agenda and the assistant's progress. */
 internal class IslandNotifications(private val activity: MainActivity, val channel: MethodChannel) {
     companion object {
-        const val OPEN = "dev.wintermute.OPEN_ISLAND"
+        const val OPEN = "dev.purin.OPEN_ISLAND"
         private const val CHANNEL = "assistant_island"
         private const val ID = 59732
     }

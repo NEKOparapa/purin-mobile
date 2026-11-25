@@ -249,7 +249,7 @@ class _MascotIslandState extends State<MascotIsland>
                                             MainAxisAlignment.spaceBetween,
                                         children: [
                                           Hero(
-                                            tag: 'wintermute-island-cat',
+                                            tag: 'purin-island-cat',
                                             child: Image.asset(
                                               'assets/mascot/island-head@3x.png',
                                               width: 32,

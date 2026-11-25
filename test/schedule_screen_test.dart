@@ -2,13 +2,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wintermute_mobile/data/agent_api.dart';
-import 'package:wintermute_mobile/data/device_inbox.dart';
-import 'package:wintermute_mobile/data/mobile_session.dart';
-import 'package:wintermute_mobile/data/mobile_store.dart';
-import 'package:wintermute_mobile/data/schedule.dart';
-import 'package:wintermute_mobile/screens/chat_screen.dart';
-import 'package:wintermute_mobile/screens/schedule_screen.dart';
+import 'package:purin_mobile/data/agent_api.dart';
+import 'package:purin_mobile/data/device_inbox.dart';
+import 'package:purin_mobile/data/mobile_session.dart';
+import 'package:purin_mobile/data/mobile_store.dart';
+import 'package:purin_mobile/data/schedule.dart';
+import 'package:purin_mobile/screens/chat_screen.dart';
+import 'package:purin_mobile/screens/schedule_screen.dart';
 
 class _Api extends AgentApi {
   final requests = <Uri>[];
@@ -158,7 +158,7 @@ void main() {
     await tester.binding.handlePopRoute();
     await tester.pumpAndSettle();
     expect(find.text('日程'), findsOneWidget);
-    expect(find.text('Wintermute'), findsOneWidget);
+    expect(find.text('Purin'), findsOneWidget);
   });
 
   testWidgets('按所选日展示通知时间和设备，支持授权、展开和已读', (tester) async {

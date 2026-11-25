@@ -86,3 +86,91 @@ class _BubblePainter extends CustomPainter {
   bool shouldRepaint(_BubblePainter old) =>
       old.fromUser != fromUser || old.fill != fill || old.edge != edge;
 }
+
+class AssistantThinkingBubble extends StatefulWidget {
+  const AssistantThinkingBubble({super.key});
+
+  @override
+  State<AssistantThinkingBubble> createState() =>
+      _AssistantThinkingBubbleState();
+}
+
+class _AssistantThinkingBubbleState extends State<AssistantThinkingBubble>
+    with SingleTickerProviderStateMixin {
+  late final _controller = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1200),
+  );
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (MediaQuery.disableAnimationsOf(context)) {
+      _controller.stop();
+    } else if (!_controller.isAnimating) {
+      _controller.repeat();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  Widget _dot(int index, bool reduceMotion, Color restColor, Color peakColor) {
+    final double wave;
+    if (reduceMotion) {
+      wave = const [0.15, 0.50, 0.90][index];
+    } else {
+      final phase = (_controller.value - index * 0.16) % 1.0;
+      wave = phase > 0.56 ? 0.0 : math.sin((phase / 0.56) * math.pi);
+    }
+    return Transform.translate(
+      offset: Offset(0, reduceMotion ? 0 : -3.5 * wave),
+      child: Transform.scale(
+        scale: 0.86 + 0.24 * wave,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: Color.lerp(restColor, peakColor, wave),
+            shape: BoxShape.circle,
+          ),
+          child: const SizedBox.square(dimension: 7),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    final restColor = colors.onSurfaceVariant.withValues(alpha: 0.38);
+    final peakColor = colors.primary.withValues(alpha: 0.92);
+    return Semantics(
+      label: 'Purin 正在思考',
+      liveRegion: true,
+      child: ExcludeSemantics(
+        child: ChatBubble(
+          fromUser: false,
+          child: SizedBox(
+            height: 25,
+            child: AnimatedBuilder(
+              animation: _controller,
+              builder: (context, _) => Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _dot(0, reduceMotion, restColor, peakColor),
+                  const SizedBox(width: 5.5),
+                  _dot(1, reduceMotion, restColor, peakColor),
+                  const SizedBox(width: 5.5),
+                  _dot(2, reduceMotion, restColor, peakColor),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}

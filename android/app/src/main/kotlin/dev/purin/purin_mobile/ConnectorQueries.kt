@@ -1,4 +1,4 @@
-package dev.wintermute.wintermute_mobile
+package dev.purin.purin_mobile
 
 import android.app.usage.UsageStatsManager
 import android.content.ContentUris

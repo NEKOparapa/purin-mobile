@@ -1,4 +1,4 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="wintermute_navigation_bar">@color/wintermute_canvas</color>
+    <color name="purin_navigation_bar">@color/purin_canvas</color>
 </resources>

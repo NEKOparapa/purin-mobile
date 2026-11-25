@@ -18,7 +18,7 @@ final class ScreenshotStore {
 
   convenience init() throws {
     guard let group = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier:
-      "group.dev.wintermute.wintermuteMobile.screenshots") else { throw Failure.appGroup }
+      "group.dev.purin.purinMobile.screenshots") else { throw Failure.appGroup }
     try self.init(root: group.appendingPathComponent("Screenshots", isDirectory: true))
   }
 

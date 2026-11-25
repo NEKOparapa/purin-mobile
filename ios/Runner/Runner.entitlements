@@ -7,7 +7,7 @@
     <key>com.apple.developer.healthkit</key>
     <true/>
     <key>com.apple.security.application-groups</key>
-    <array><string>group.dev.wintermute.wintermuteMobile.screenshots</string></array>
+    <array><string>group.dev.purin.purinMobile.screenshots</string></array>
     <key>keychain-access-groups</key>
     <array/>
 </dict>

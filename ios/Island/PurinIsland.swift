@@ -2,7 +2,7 @@ import ActivityKit
 import SwiftUI
 import WidgetKit
 
-private let chatURL = URL(string: "wintermute-island://chat")
+private let chatURL = URL(string: "purin-island://chat")
 private typealias Context = ActivityViewContext<IslandAttributes>
 
 private func symbol(_ context: Context) -> String {
@@ -24,7 +24,7 @@ private func status(_ context: Context) -> String {
 private struct CatHead: View {
   var body: some View {
     Image("island-head").renderingMode(.original).resizable().scaledToFit()
-      .accessibilityLabel("Wintermute")
+      .accessibilityLabel("Purin")
   }
 }
 
@@ -44,7 +44,7 @@ private struct TodaySummary: View {
 }
 
 @main
-struct WintermuteIsland: Widget {
+struct PurinIsland: Widget {
   var body: some WidgetConfiguration {
     ActivityConfiguration(for: IslandAttributes.self) { context in
       VStack(alignment: .leading, spacing: 7) {

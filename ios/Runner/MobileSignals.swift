@@ -78,7 +78,7 @@ final class MobileSignals: NSObject, CLLocationManagerDelegate {
   }
 
   func register(with messenger: FlutterBinaryMessenger) {
-    let channel = FlutterMethodChannel(name: "dev.wintermute/mobile_signals", binaryMessenger: messenger)
+    let channel = FlutterMethodChannel(name: "dev.purin/mobile_signals", binaryMessenger: messenger)
     self.channel = channel
     channel.setMethodCallHandler { [weak self] call, reply in
       guard let self = self else { return reply(FlutterMethodNotImplemented) }
@@ -165,7 +165,7 @@ final class MobileSignals: NSObject, CLLocationManagerDelegate {
       manager.delegate = self
     }
     if source == "backgroundLocation" && authorization == .authorizedWhenInUse {
-      let key = "wintermute.requestedAlwaysLocation"
+      let key = "purin.requestedAlwaysLocation"
       if UserDefaults.standard.bool(forKey: key) {
         // iOS limits repeat upgrade prompts. The user can still choose Always in Settings.
         if let url = URL(string: UIApplication.openSettingsURLString) {

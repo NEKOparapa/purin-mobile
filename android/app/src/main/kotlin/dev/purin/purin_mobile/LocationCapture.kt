@@ -1,4 +1,4 @@
-package dev.wintermute.wintermute_mobile
+package dev.purin.purin_mobile
 
 import android.Manifest
 import android.app.PendingIntent
@@ -39,7 +39,7 @@ internal class LocationCapture(private val context: Context, private val store: 
     private fun delivery(generation: String): PendingIntent {
         val mutableFlag = if (Build.VERSION.SDK_INT >= 31) PendingIntent.FLAG_MUTABLE else 0
         val intent = Intent(context, LocationReceiver::class.java)
-            .setData(Uri.fromParts("wintermute-location", generation, null))
+            .setData(Uri.fromParts("purin-location", generation, null))
         return PendingIntent.getBroadcast(context, 0, intent, PendingIntent.FLAG_UPDATE_CURRENT or mutableFlag)
     }
 

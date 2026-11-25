@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wintermute_mobile/data/agent_api.dart';
-import 'package:wintermute_mobile/data/mobile_signals.dart';
+import 'package:purin_mobile/data/agent_api.dart';
+import 'package:purin_mobile/data/mobile_signals.dart';
 
 void main() {
   test('前台、后台和旧队列重试使用同一个结构化感知事件', () {

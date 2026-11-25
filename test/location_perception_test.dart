@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:wintermute_mobile/data/mobile_signals.dart';
+import 'package:purin_mobile/data/mobile_signals.dart';
 
 void main() {
   test('地点感知保留原始经纬度、误差和系统定位类型', () {

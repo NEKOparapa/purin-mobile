@@ -6,15 +6,15 @@
 	<true/>
 	<key>CFBundleURLTypes</key>
 	<array><dict>
-		<key>CFBundleURLName</key><string>dev.wintermute.island</string>
-		<key>CFBundleURLSchemes</key><array><string>wintermute-island</string></array>
+		<key>CFBundleURLName</key><string>dev.purin.island</string>
+		<key>CFBundleURLSchemes</key><array><string>purin-island</string></array>
 	</dict></array>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>用于录制你主动输入的语音并转成可编辑的消息草稿。</string>
 	<key>NSCameraUsageDescription</key>
 	<string>扫描管理页面上的二维码以配对此设备。</string>
 	<key>NSScreenCaptureUsageDescription</key>
-	<string>经你允许，在使用其他应用时定时截屏并同步到已连接的 Wintermute 服务。</string>
+	<string>经你允许，在使用其他应用时定时截屏并同步到已连接的 Purin 服务。</string>
 	<key>UIBackgroundModes</key>
 	<array><string>screen-capture</string><string>location</string></array>
 	<key>NSCalendarsUsageDescription</key>
@@ -36,9 +36,9 @@
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>通过你开启的位置连接器获取一次位置，或按你开启的地点采集设置生成活动时间线。</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>允许后台定位后，Wintermute 可在手机锁屏或应用进入后台时定时采集位置，并按你的设置记录 Wi-Fi 连接信息。</string>
+	<string>允许后台定位后，Purin 可在手机锁屏或应用进入后台时定时采集位置，并按你的设置记录 Wi-Fi 连接信息。</string>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>连接你配置的局域网 Wintermute Agent 服务。</string>
+	<string>连接你配置的局域网 Purin Agent 服务。</string>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>
@@ -49,7 +49,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Wintermute</string>
+	<string>Purin</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -57,7 +57,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>wintermute_mobile</string>
+	<string>purin_mobile</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>

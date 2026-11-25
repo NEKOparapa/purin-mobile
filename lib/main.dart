@@ -11,13 +11,13 @@ import 'widgets/app_theme.dart';
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  runApp(const WintermuteApp());
+  runApp(const PurinApp());
 }
 
 @pragma('vm:entry-point')
 Future<void> usageWorker() async {
   WidgetsFlutterBinding.ensureInitialized();
-  const channel = MethodChannel('dev.wintermute/usage_worker');
+  const channel = MethodChannel('dev.purin/usage_worker');
   final store = DeviceStore();
   final api = AgentApi();
   var retrySeconds = 0;
@@ -99,15 +99,14 @@ Future<void> notificationJob() async {
   await noticeChannel.invokeMethod<void>('finished', {'retry': retry});
 }
 
-class WintermuteApp extends StatefulWidget {
-  const WintermuteApp({super.key, this.session});
+class PurinApp extends StatefulWidget {
+  const PurinApp({super.key, this.session});
   final MobileSession? session;
   @override
-  State<WintermuteApp> createState() => _WintermuteAppState();
+  State<PurinApp> createState() => _PurinAppState();
 }
 
-class _WintermuteAppState extends State<WintermuteApp>
-    with WidgetsBindingObserver {
+class _PurinAppState extends State<PurinApp> with WidgetsBindingObserver {
   late final session =
       widget.session ?? MobileSession(DeviceStore(), AgentApi());
 
@@ -142,7 +141,7 @@ class _WintermuteAppState extends State<WintermuteApp>
   Widget build(BuildContext context) => ValueListenableBuilder<ThemeMode>(
     valueListenable: session.themeMode,
     builder: (context, mode, child) => MaterialApp(
-      title: 'Wintermute',
+      title: 'Purin',
       debugShowCheckedModeBanner: false,
       theme: _lightTheme,
       darkTheme: _darkTheme,

@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <style name="LaunchTheme" parent="NormalTheme">
-        <item name="android:windowSplashScreenBackground">@color/wintermute_canvas</item>
+        <item name="android:windowSplashScreenBackground">@color/purin_canvas</item>
         <item name="android:windowSplashScreenAnimatedIcon">@drawable/launch_mark</item>
     </style>
 </resources>

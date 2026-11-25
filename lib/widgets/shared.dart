@@ -16,16 +16,8 @@ class AtmosphereBackground extends StatelessWidget {
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           colors: dark
-              ? const [
-                  Color(0xFF141A24),
-                  Color(0xFF121B28),
-                  Color(0xFF152030),
-                ]
-              : const [
-                  Color(0xFFF8F7F4),
-                  Color(0xFFEDF4FC),
-                  Color(0xFFF7FAFE),
-                ],
+              ? const [Color(0xFF141A24), Color(0xFF121B28), Color(0xFF152030)]
+              : const [Color(0xFFF8F7F4), Color(0xFFEDF4FC), Color(0xFFF7FAFE)],
           stops: dark ? const [0, 0.55, 1] : const [0, 0.52, 1],
         ),
       ),
@@ -50,20 +42,15 @@ class _SkyMistPainter extends CustomPainter {
     canvas.drawRect(
       rect,
       Paint()
-        ..shader = RadialGradient(
-          colors: dark
-              ? const [
-                  Color(0x14FFE0BA),
-                  Color(0x00FFE0BA),
-                ]
-              : const [
-                  Color(0xE6FFFAEE),
-                  Color(0x00FFFAEE),
-                ],
-          stops: const [0.0, 1.0],
-        ).createShader(
-          Rect.fromCircle(center: bloomCenter, radius: bloomRadius),
-        ),
+        ..shader =
+            RadialGradient(
+              colors: dark
+                  ? const [Color(0x14FFE0BA), Color(0x00FFE0BA)]
+                  : const [Color(0xE6FFFAEE), Color(0x00FFFAEE)],
+              stops: const [0.0, 1.0],
+            ).createShader(
+              Rect.fromCircle(center: bloomCenter, radius: bloomRadius),
+            ),
     );
   }
 
@@ -109,7 +96,7 @@ class FadingPageHeader extends StatelessWidget {
   }
 }
 
-/// Standard secondary page with the same canvas as the chat.
+/// Standard secondary page with a clean flat surface background.
 class AtmosphereScaffold extends StatelessWidget {
   const AtmosphereScaffold({
     super.key,
@@ -129,32 +116,30 @@ class AtmosphereScaffold extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    return AtmosphereBackground(
-      child: Scaffold(
-        backgroundColor: Colors.transparent,
-        resizeToAvoidBottomInset: resizeToAvoidBottomInset,
-        appBar: title == null
-            ? null
-            : AppBar(
-                automaticallyImplyLeading: false,
-                toolbarHeight: 58,
-                titleSpacing: showBack ? 2 : 20,
-                leading: showBack
-                    ? IconButton(
-                        tooltip: '返回',
-                        onPressed: () => Navigator.of(context).maybePop(),
-                        icon: Icon(
-                          Icons.arrow_back_rounded,
-                          size: 22,
-                          color: colors.onSurface,
-                        ),
-                      )
-                    : null,
-                title: Text(title!),
-                actions: [...?actions, const SizedBox(width: 8)],
-              ),
-        body: body,
-      ),
+    return Scaffold(
+      backgroundColor: colors.surface,
+      resizeToAvoidBottomInset: resizeToAvoidBottomInset,
+      appBar: title == null
+          ? null
+          : AppBar(
+              automaticallyImplyLeading: false,
+              toolbarHeight: 58,
+              titleSpacing: showBack ? 2 : 20,
+              leading: showBack
+                  ? IconButton(
+                      tooltip: '返回',
+                      onPressed: () => Navigator.of(context).maybePop(),
+                      icon: Icon(
+                        Icons.arrow_back_rounded,
+                        size: 22,
+                        color: colors.onSurface,
+                      ),
+                    )
+                  : null,
+              title: Text(title!),
+              actions: [...?actions, const SizedBox(width: 8)],
+            ),
+      body: body,
     );
   }
 }
@@ -190,10 +175,7 @@ class GlassCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: baseFill,
           borderRadius: shape,
-          border: Border.all(
-            color: borderColor ?? atmo.cardBorder,
-            width: 0.9,
-          ),
+          border: Border.all(color: borderColor ?? atmo.cardBorder, width: 0.9),
         ),
         child: child,
       ),
@@ -223,7 +205,7 @@ class SettingsSection extends StatelessWidget {
     this.title,
     this.footer,
     required this.children,
-    this.dividers = false,
+    this.dividers = true,
   });
 
   final String? title;
@@ -241,7 +223,7 @@ class SettingsSection extends StatelessWidget {
         items.add(
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            child: Divider(height: 0.6, thickness: 0.6, color: atmo.hairline),
+            child: Divider(height: 0.9, thickness: 0.9, color: atmo.hairline),
           ),
         );
       }

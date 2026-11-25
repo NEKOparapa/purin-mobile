@@ -17,7 +17,7 @@ final class Screenshots: NSObject {
                  UIApplication.protectedDataDidBecomeAvailableNotification] {
       NotificationCenter.default.addObserver(self, selector: #selector(updateVisibility(_:)), name: name, object: nil)
     }
-    let channel = FlutterMethodChannel(name: "dev.wintermute/screenshots", binaryMessenger: messenger)
+    let channel = FlutterMethodChannel(name: "dev.purin/screenshots", binaryMessenger: messenger)
     channel.setMethodCallHandler { [weak self] call, reply in
       guard let self = self else { return reply(FlutterMethodNotImplemented) }
       guard let store = self.store else {
@@ -109,7 +109,7 @@ final class Screenshots: NSObject {
     let label = UILabel()
     label.numberOfLines = 0
     label.textAlignment = .center
-    label.text = "轻点系统广播按钮，选择 Wintermute 并开始广播。"
+    label.text = "轻点系统广播按钮，选择 Purin 并开始广播。"
     let done = UIButton(type: .system)
     done.setTitle("返回", for: .normal)
     done.addTarget(self, action: #selector(dismissPicker), for: .touchUpInside)

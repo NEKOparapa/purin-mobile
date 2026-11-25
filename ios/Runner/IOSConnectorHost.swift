@@ -49,7 +49,7 @@ struct ConnectorRequest {
   let deadline: TimeInterval
   let server: String
   @MainActor func check() throws {
-    guard UIApplication.shared.applicationState == .active else { throw ConnectorIssue("请在前台打开 Wintermute") }
+    guard UIApplication.shared.applicationState == .active else { throw ConnectorIssue("请在前台打开 Purin") }
     guard ProcessInfo.processInfo.systemUptime < deadline else { throw ConnectorIssue("设备调用超时") }
   }
   @MainActor func presenter() throws -> UIViewController {
@@ -80,7 +80,7 @@ final class IOSConnectorHost: NSObject {
   ]
 
   func register(with messenger: FlutterBinaryMessenger) {
-    let channel = FlutterMethodChannel(name: "dev.wintermute/ios_connectors", binaryMessenger: messenger)
+    let channel = FlutterMethodChannel(name: "dev.purin/ios_connectors", binaryMessenger: messenger)
     channel.setMethodCallHandler { [weak self] call, reply in
       Task { @MainActor in
         guard let self = self else { return reply(FlutterMethodNotImplemented) }

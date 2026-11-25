@@ -104,7 +104,7 @@ class _ChatMascotState extends State<ChatMascot> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Hero(
-                tag: 'wintermute-island-cat',
+                tag: 'purin-island-cat',
                 child: Image.asset(
                   'assets/mascot/$mood$suffix.webp',
                   width: side,
@@ -122,7 +122,7 @@ class _ChatMascotState extends State<ChatMascot> {
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 7),
                   child: Text(
-                    'Wintermute',
+                    'Purin',
                     style: TextStyle(
                       fontSize: 13,
                       height: 1.3,

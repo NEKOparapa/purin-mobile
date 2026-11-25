@@ -1,4 +1,4 @@
-package dev.wintermute.wintermute_mobile
+package dev.purin.purin_mobile
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -41,11 +41,11 @@ class UsageService : Service() {
             try {
                 val runtime = FlutterEngine(applicationContext)
                 engine = runtime
-                MethodChannel(runtime.dartExecutor.binaryMessenger, "dev.wintermute/usage_worker")
+                MethodChannel(runtime.dartExecutor.binaryMessenger, "dev.purin/usage_worker")
                     .setMethodCallHandler(::handle)
                 runtime.dartExecutor.executeDartEntrypoint(DartEntrypoint(loader.findAppBundlePath(), "usageWorker"))
             } catch (e: RuntimeException) {
-                android.util.Log.w("WintermuteUsage", "Unable to start usage worker", e)
+                android.util.Log.w("PurinUsage", "Unable to start usage worker", e)
                 stopSelf()
             }
         }

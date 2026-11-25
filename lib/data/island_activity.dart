@@ -12,7 +12,7 @@ String islandTime(DateTime at) =>
 class IslandActivity {
   IslandActivity(this.session, this._token);
   final MobileSession session;
-  static const _channel = MethodChannel('dev.wintermute/island');
+  static const _channel = MethodChannel('dev.purin/island');
   static IslandActivity? _owner;
   static String? _androidFold;
   static bool get _android => defaultTargetPlatform == TargetPlatform.android;

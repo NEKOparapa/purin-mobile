@@ -27,7 +27,7 @@ class _PairingScannerState extends State<PairingScanner> {
         return;
       }
     }
-    const invalid = '请扫描 Wintermute 管理页生成的配对二维码';
+    const invalid = '请扫描 Purin 管理页生成的配对二维码';
     if (_hint != invalid) setState(() => _hint = invalid);
   }
 

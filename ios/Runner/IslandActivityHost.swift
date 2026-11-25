@@ -11,7 +11,7 @@ final class IslandActivityHost: NSObject {
 
   func register(_ messenger: FlutterBinaryMessenger) {
     guard #available(iOS 16.2, *) else { return }
-    let bridge = FlutterMethodChannel(name: "dev.wintermute/island", binaryMessenger: messenger)
+    let bridge = FlutterMethodChannel(name: "dev.purin/island", binaryMessenger: messenger)
     channel = bridge
     // A fresh Flutter engine starts at chat and has no folded conversation yet.
     tail = Task {
@@ -51,7 +51,7 @@ final class IslandActivityHost: NSObject {
   }
 
   func open(_ url: URL) -> Bool {
-    guard url.scheme == "wintermute-island", url.host == "chat" else { return false }
+    guard url.scheme == "purin-island", url.host == "chat" else { return false }
     channel?.invokeMethod("openChat", arguments: nil)
     return true
   }
