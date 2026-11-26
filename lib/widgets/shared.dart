@@ -1,6 +1,7 @@
 import 'dart:ui' show ImageFilter;
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../l10n/app_language.dart';
 import 'app_theme.dart';
 
 class AtmosphereBackground extends StatelessWidget {
@@ -127,7 +128,7 @@ class AtmosphereScaffold extends StatelessWidget {
               titleSpacing: showBack ? 2 : 20,
               leading: showBack
                   ? IconButton(
-                      tooltip: '返回',
+                      tooltip: context.tr('返回'),
                       onPressed: () => Navigator.of(context).maybePop(),
                       icon: Icon(
                         Icons.arrow_back_rounded,
@@ -515,7 +516,7 @@ class ApplePillChip extends StatelessWidget {
               if (onDelete != null) ...[
                 const SizedBox(width: 4),
                 Tooltip(
-                  message: deleteTooltip ?? '移除',
+                  message: deleteTooltip ?? context.tr('移除'),
                   child: GestureDetector(
                     onTap: onDelete,
                     child: Icon(

@@ -59,7 +59,7 @@ final class IslandActivityHost: NSObject {
   @available(iOS 16.2, *)
   private func set(_ args: [String: Any]) async throws {
     guard let owner = args["owner"] as? String, let phase = args["phase"] as? String else { return }
-    let state = IslandAttributes.ContentState(phase: phase, lines: args["lines"] as? [String] ?? [],
+    let state = IslandAttributes.ContentState(language: args["language"] as? String, phase: phase, lines: args["lines"] as? [String] ?? [],
       dayEnd: (args["dayEnd"] as? NSNumber).map { Date(timeIntervalSince1970: $0.doubleValue / 1000) })
     let content = ActivityContent(state: state,
       staleDate: phase == "working" ? Date().addingTimeInterval(60) : nil)

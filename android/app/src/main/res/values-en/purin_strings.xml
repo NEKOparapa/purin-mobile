@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_reminders">Agent notifications</string>
+    <string name="activity_collection">Mobile activity collection</string>
+    <string name="recording_location">Recording periodic location</string>
+    <string name="recording_app_activity">Recording foreground app activity</string>
+    <string name="collection_settings">Change or turn this off in Data collection.</string>
+    <string name="periodic_screenshots">Periodic screenshots</string>
+    <string name="capturing_foreground">Purin is capturing foreground app screenshots</string>
+    <string name="screenshot_timing">A screenshot is taken after 10 minutes in the same app.</string>
+    <string name="stop_sharing">Stop sharing</string>
+    <string name="assistant_live">Assistant live updates</string>
+    <string name="today_summary">Today’s notifications and events</string>
+    <string name="today_offline">Connect to see today’s items</string>
+    <string name="today_loading">Loading today’s items…</string>
+</resources>

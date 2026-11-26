@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
+import '../l10n/app_language.dart';
 
 import '../data/agent_api.dart';
 
@@ -33,7 +34,7 @@ class _PairingScannerState extends State<PairingScanner> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('扫码配对')),
+    appBar: AppBar(title: Text(context.tr('扫码配对'))),
     body: SafeArea(
       child: Column(
         children: [
@@ -45,14 +46,17 @@ class _PairingScannerState extends State<PairingScanner> {
                   padding: const EdgeInsets.all(20),
                   child: Text(
                     error.errorCode == MobileScannerErrorCode.permissionDenied
-                        ? '需要相机权限才能扫码。也可以返回粘贴配对链接。'
-                        : '相机暂时不可用，可以返回粘贴配对链接。',
+                        ? context.tr('需要相机权限才能扫码。也可以返回粘贴配对链接。')
+                        : context.tr('相机暂时不可用，可以返回粘贴配对链接。'),
                   ),
                 ),
               ),
             ),
           ),
-          Padding(padding: const EdgeInsets.all(16), child: Text(_hint)),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(context.tr(_hint)),
+          ),
         ],
       ),
     ),

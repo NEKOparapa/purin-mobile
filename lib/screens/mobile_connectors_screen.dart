@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_language.dart';
 
 import '../data/mobile_connectors.dart';
 import '../data/mobile_session.dart';
@@ -105,7 +106,7 @@ class _MobileConnectorsScreenState extends State<MobileConnectorsScreen> {
     try {
       issue = await widget.session.setMobileConnector(item, value);
     } catch (e) {
-      issue = '无法更改授权 · $e';
+      issue = widget.session.language.value.text('无法更改授权 · {0}', [e]);
     } finally {
       if (mounted) {
         setState(() {
@@ -133,38 +134,41 @@ class _MobileConnectorsScreenState extends State<MobileConnectorsScreen> {
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text(
-                item.title,
+                context.tr(item.title),
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 10),
-              Text(item.description),
+              Text(context.tr(item.description)),
               const SizedBox(height: 20),
-              Text('可以这样问', style: Theme.of(context).textTheme.labelLarge),
+              Text(
+                context.tr('可以这样问'),
+                style: Theme.of(context).textTheme.labelLarge,
+              ),
               const SizedBox(height: 4),
-              Text('“${item.appearance.$3}”'),
+              Text('“${context.tr(item.appearance.$3)}”'),
               const SizedBox(height: 20),
               if (!supported) ...[
                 Text(
-                  '此连接器仅可在 ${item.platform.label} 设备上启用。',
+                  context.tr('此连接器仅可在 {0} 设备上启用。', [item.platform.label]),
                   style: TextStyle(
                     color: Theme.of(context).colorScheme.onSurfaceVariant,
                   ),
                 ),
                 const SizedBox(height: 12),
-                const FilledButton(onPressed: null, child: Text('启用连接器')),
+                FilledButton(onPressed: null, child: Text(context.tr('启用连接器'))),
               ] else if (!session.canEnableConnectors)
-                const Text('通过 HTTPS 或本机回环地址连接服务后，即可在此启用。')
+                Text(context.tr('通过 HTTPS 或本机回环地址连接服务后，即可在此启用。'))
               else ...[
                 if (!on || !granted)
                   FilledButton(
                     onPressed: () => Navigator.pop(context, true),
-                    child: Text(on ? '重新授权' : '启用连接器'),
+                    child: Text(on ? context.tr('重新授权') : context.tr('启用连接器')),
                   ),
                 if (on && !granted) const SizedBox(height: 8),
                 if (on)
                   OutlinedButton(
                     onPressed: () => Navigator.pop(context, false),
-                    child: const Text('关闭连接器'),
+                    child: Text(context.tr('关闭连接器')),
                   ),
               ],
             ],
@@ -183,10 +187,10 @@ class _MobileConnectorsScreenState extends State<MobileConnectorsScreen> {
     final on = session.connectorEnabled(item);
     final granted = session.connectorGranted(item);
     final status = !supported
-        ? '仅限 ${item.platform.label}'
+        ? context.tr('仅限 {0}', [item.platform.label])
         : on
-        ? (granted ? '已启用' : '需要授权')
-        : '未启用';
+        ? (granted ? context.tr('已启用') : context.tr('需要授权'))
+        : context.tr('未启用');
     return SizedBox(
       width: width,
       child: Material(
@@ -219,10 +223,13 @@ class _MobileConnectorsScreenState extends State<MobileConnectorsScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(item.title, style: theme.textTheme.titleMedium),
+                        Text(
+                          context.tr(item.title),
+                          style: theme.textTheme.titleMedium,
+                        ),
                         const SizedBox(height: 2),
                         Text(
-                          item.description,
+                          context.tr(item.description),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
@@ -238,7 +245,7 @@ class _MobileConnectorsScreenState extends State<MobileConnectorsScreen> {
                     )
                   else if (!supported)
                     Text(
-                      '不可用',
+                      context.tr('不可用'),
                       semanticsLabel: status,
                       style: theme.textTheme.labelSmall?.copyWith(
                         color: theme.colorScheme.onSurfaceVariant,
@@ -270,7 +277,7 @@ class _MobileConnectorsScreenState extends State<MobileConnectorsScreen> {
 
   @override
   Widget build(BuildContext context) => AtmosphereScaffold(
-    title: '连接器',
+    title: context.tr('连接器'),
     body: SafeArea(
       top: false,
       child: ListenableBuilder(
@@ -284,10 +291,10 @@ class _MobileConnectorsScreenState extends State<MobileConnectorsScreen> {
               _feedback ??
               session.connectorError ??
               (currentPlatform == ConnectorPlatform.unsupported
-                  ? '点开可查看连接器用法，请在 Android 或 iOS 设备上启用。'
+                  ? context.tr('点开可查看连接器用法，请在 Android 或 iOS 设备上启用。')
                   : session.canEnableConnectors
                   ? null
-                  : '点开可查看用法，连接服务后即可启用。');
+                  : context.tr('点开可查看用法，连接服务后即可启用。'));
           return Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 850),
@@ -324,8 +331,10 @@ class _MobileConnectorsScreenState extends State<MobileConnectorsScreen> {
                                       child: Text(
                                         groups[i] == currentPlatform
                                             ? (session.connection?.deviceName ??
-                                                  '本机')
-                                            : '仅限 ${groups[i].label} 设备',
+                                                  context.tr('本机'))
+                                            : context.tr('仅限 {0} 设备', [
+                                                groups[i].label,
+                                              ]),
                                         overflow: TextOverflow.ellipsis,
                                         style: groups[i] == currentPlatform
                                             ? null

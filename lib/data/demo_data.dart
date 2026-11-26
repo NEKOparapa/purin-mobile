@@ -1,3 +1,5 @@
+import '../l10n/app_language.dart';
+
 class Memory {
   final String title, time, source, summary, detail;
   final List<String> tags;
@@ -13,31 +15,36 @@ class Memory {
   });
 }
 
-const memories = [
+List<Memory> localizedMemories(AppLanguage language) => [
   Memory(
-    title: '让 AI 成为日常里安静的陪伴',
+    title: language.text('让 AI 成为日常里安静的陪伴'),
     time: '14:32',
-    source: '随身录音 · 18 分钟',
-    summary: '比起更多的功能，更希望它能理解上下文，在恰当的时候出现。',
-    detail:
-        '理想中的 AI 执事不需要一直提醒自己它的存在。它应该记得之前聊过的事，理解那些没说完整的想法。\n\n下一步：先把跨设备的主页做出来，让想法有一个可以触碰的起点。\n\n这是一条示例记忆。',
-    tags: ['产品灵感', 'Purin'],
+    source: language.text('随身录音 · 18 分钟'),
+    summary: language.text('比起更多的功能，更希望它能理解上下文，在恰当的时候出现。'),
+    detail: language.text(
+      '理想中的 AI 执事不需要一直提醒自己它的存在。它应该记得之前聊过的事，理解那些没说完整的想法。\n\n下一步：先把跨设备的主页做出来，让想法有一个可以触碰的起点。\n\n这是一条示例记忆。',
+    ),
+    tags: [language.text('产品灵感'), 'Purin'],
   ),
   Memory(
-    title: '专注，也需要一些边界',
+    title: language.text('专注，也需要一些边界'),
     time: '11:06',
-    source: '桌面对话',
+    source: language.text('桌面对话'),
     isVoice: false,
-    summary: '尝试把上午留给深度工作，消息和琐事放到下午集中处理。',
-    detail: '给自己留出一段完整的时间，只做一件重要的事。暂时放下消息提醒，在下午统一处理琐事。\n\n这是一条示例记忆，尚未创建真实日程。',
-    tags: ['生活方式', '专注'],
+    summary: language.text('尝试把上午留给深度工作，消息和琐事放到下午集中处理。'),
+    detail: language.text(
+      '给自己留出一段完整的时间，只做一件重要的事。暂时放下消息提醒，在下午统一处理琐事。\n\n这是一条示例记忆，尚未创建真实日程。',
+    ),
+    tags: [language.text('生活方式'), language.text('专注')],
   ),
   Memory(
-    title: '周末的小小出逃计划',
+    title: language.text('周末的小小出逃计划'),
     time: '09:18',
-    source: '随身录音 · 24 分钟',
-    summary: '找一条安静的山间小路，带上相机，不急着抵达。',
-    detail: '想在周末去附近的山里走走。带上相机和水，不设定一定要到达的目的地，只是看看沿途的风景。\n\n这是一条示例记忆。',
-    tags: ['周末计划', '随想'],
+    source: language.text('随身录音 · 24 分钟'),
+    summary: language.text('找一条安静的山间小路，带上相机，不急着抵达。'),
+    detail: language.text(
+      '想在周末去附近的山里走走。带上相机和水，不设定一定要到达的目的地，只是看看沿途的风景。\n\n这是一条示例记忆。',
+    ),
+    tags: [language.text('周末计划'), language.text('随想')],
   ),
 ];

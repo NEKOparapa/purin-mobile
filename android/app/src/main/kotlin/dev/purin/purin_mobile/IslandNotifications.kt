@@ -25,6 +25,8 @@ internal class IslandNotifications(private val activity: MainActivity, val chann
     private val manager = activity.getSystemService(NotificationManager::class.java)
     private val main = Handler(Looper.getMainLooper())
     private var owner: String? = null
+    private var language = "zh-CN"
+    private var strings = activity.purinStrings(language)
     private var promoted = false
     private var minimized = false
     private var lastContent: Pair<String, List<String>>? = null
@@ -46,7 +48,9 @@ internal class IslandNotifications(private val activity: MainActivity, val chann
             when (call.method) {
                 "fold" -> {
                     val token = requireNotNull(call.argument<String>("owner"))
-                    manager.createNotificationChannel(NotificationChannel(CHANNEL, "助手实时胶囊", NotificationManager.IMPORTANCE_DEFAULT).apply {
+                    language = call.argument<String>("language") ?: "zh-CN"
+                    strings = activity.purinStrings(language)
+                    manager.createNotificationChannel(NotificationChannel(CHANNEL, strings.getString(R.string.assistant_live), NotificationManager.IMPORTANCE_DEFAULT).apply {
                         setSound(null, null)
                         enableVibration(false)
                     })
@@ -66,6 +70,12 @@ internal class IslandNotifications(private val activity: MainActivity, val chann
                 }
                 "set" -> {
                     if (owner != null && owner == call.argument<String>("owner") && (!promoted || active())) {
+                        val nextLanguage = call.argument<String>("language") ?: "zh-CN"
+                        if (language != nextLanguage) {
+                            language = nextLanguage
+                            strings = activity.purinStrings(language)
+                            lastContent = null
+                        }
                         post(call.argument<String>("status") ?: "待机", call.argument<List<String>>("lines").orEmpty())
                     }
                     result.success(null)
@@ -120,7 +130,7 @@ internal class IslandNotifications(private val activity: MainActivity, val chann
             else -> "☾"
         }
         val text = lines.joinToString("\n").ifBlank {
-            if (status == "未连接") "连接后可查看今天的内容" else "正在读取今天的内容…"
+            strings.getString(if (status == "未连接") R.string.today_offline else R.string.today_loading)
         }
         val midnight = Calendar.getInstance().apply {
             add(Calendar.DAY_OF_MONTH, 1)
@@ -131,7 +141,7 @@ internal class IslandNotifications(private val activity: MainActivity, val chann
         }
         val notification = Notification.Builder(activity, CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_purin).setLargeIcon(head)
-            .setContentTitle("今日通知与安排").setContentText(text.replace("\n", " · "))
+            .setContentTitle(strings.getString(R.string.today_summary)).setContentText(text.replace("\n", " · "))
             .setStyle(Notification.BigTextStyle().bigText(text))
             .setSubText("todo").setShortCriticalText(chip)
             .setOngoing(true).setOnlyAlertOnce(true).setShowWhen(false)

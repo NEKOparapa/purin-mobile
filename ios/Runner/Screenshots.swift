@@ -101,7 +101,8 @@ final class Screenshots: NSObject {
   private func showBroadcastPicker(from host: UIViewController) {
     if let existing = pickerController, existing.presentingViewController != nil { return }
     let controller = UIViewController()
-    controller.title = "共享屏幕"
+    let english = PurinLanguage.isEnglish
+    controller.title = english ? "Share screen" : "共享屏幕"
     controller.view.backgroundColor = .systemBackground
     let picker = RPSystemBroadcastPickerView(frame: CGRect(x: 0, y: 0, width: 58, height: 58))
     picker.preferredExtension = (Bundle.main.bundleIdentifier ?? "") + ".Broadcast"
@@ -109,9 +110,9 @@ final class Screenshots: NSObject {
     let label = UILabel()
     label.numberOfLines = 0
     label.textAlignment = .center
-    label.text = "轻点系统广播按钮，选择 Purin 并开始广播。"
+    label.text = english ? "Tap the system broadcast button, select Purin, and start the broadcast." : "轻点系统广播按钮，选择 Purin 并开始广播。"
     let done = UIButton(type: .system)
-    done.setTitle("返回", for: .normal)
+    done.setTitle(english ? "Back" : "返回", for: .normal)
     done.addTarget(self, action: #selector(dismissPicker), for: .touchUpInside)
     let stack = UIStackView(arrangedSubviews: [label, picker, done])
     stack.axis = .vertical

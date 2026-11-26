@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
+import 'l10n/app_language.dart';
 import 'package:flutter/services.dart';
 import 'screens/chat_screen.dart';
 import 'data/mobile_session.dart';
@@ -116,7 +118,10 @@ class _PurinAppState extends State<PurinApp> with WidgetsBindingObserver {
     WidgetsBinding.instance.addObserver(this);
     final binding = WidgetsBinding.instance;
     binding.deferFirstFrame();
-    session.restoreTheme().whenComplete(binding.allowFirstFrame);
+    Future.wait([
+      session.restoreLanguage(),
+      session.restoreTheme(),
+    ]).whenComplete(binding.allowFirstFrame);
     session.page('Agent 对话');
     session.initialize();
   }
@@ -138,14 +143,20 @@ class _PurinAppState extends State<PurinApp> with WidgetsBindingObserver {
   }
 
   @override
-  Widget build(BuildContext context) => ValueListenableBuilder<ThemeMode>(
-    valueListenable: session.themeMode,
-    builder: (context, mode, child) => MaterialApp(
+  Widget build(BuildContext context) => ListenableBuilder(
+    listenable: Listenable.merge([session.themeMode, session.language]),
+    builder: (context, child) => MaterialApp(
+      locale: session.language.value.locale,
+      supportedLocales: AppLanguage.values.map((value) => value.locale),
+      localizationsDelegates: const [
+        AppLanguageDelegate(),
+        ...GlobalMaterialLocalizations.delegates,
+      ],
       title: 'Purin',
       debugShowCheckedModeBanner: false,
       theme: _lightTheme,
       darkTheme: _darkTheme,
-      themeMode: mode,
+      themeMode: session.themeMode.value,
       themeAnimationDuration: Duration.zero,
       builder: (context, page) => AnnotatedRegion<SystemUiOverlayStyle>(
         value: barsFor(Theme.of(context).colorScheme),

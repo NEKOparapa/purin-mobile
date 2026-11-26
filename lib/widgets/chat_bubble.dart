@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import '../l10n/app_language.dart';
 import 'app_theme.dart';
 
 class ChatBubble extends StatelessWidget {
@@ -148,7 +149,7 @@ class _AssistantThinkingBubbleState extends State<AssistantThinkingBubble>
     final restColor = colors.onSurfaceVariant.withValues(alpha: 0.38);
     final peakColor = colors.primary.withValues(alpha: 0.92);
     return Semantics(
-      label: 'Purin 正在思考',
+      label: context.tr('Purin 正在思考'),
       liveRegion: true,
       child: ExcludeSemantics(
         child: ChatBubble(

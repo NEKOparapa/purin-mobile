@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
+import '../l10n/app_language.dart';
 import '../data/agent_api.dart';
 import '../data/chat_attachment.dart';
 import '../data/chat_dictation.dart';
@@ -207,7 +208,9 @@ class _ChatComposerState extends State<ChatComposer>
       }
     } catch (e) {
       if (mounted && widget.session.connection == conn) {
-        setState(() => _error = chatMediaError(e));
+        setState(
+          () => _error = chatMediaError(e, widget.session.language.value),
+        );
       }
     } finally {
       if (mounted) setState(() => _picking = false);
@@ -267,8 +270,10 @@ class _ChatComposerState extends State<ChatComposer>
     } catch (e) {
       if (current()) {
         setState(
-          () =>
-              _error = [_uploadingName, chatMediaError(e)].nonNulls.join(' · '),
+          () => _error = [
+            _uploadingName,
+            chatMediaError(e, widget.session.language.value),
+          ].nonNulls.join(' · '),
         );
       }
     } finally {
@@ -332,7 +337,11 @@ class _ChatComposerState extends State<ChatComposer>
       );
       widget.focusNode.requestFocus();
     } catch (e) {
-      if (current()) setState(() => _error = chatMediaError(e));
+      if (current()) {
+        setState(
+          () => _error = chatMediaError(e, widget.session.language.value),
+        );
+      }
     } finally {
       if (mounted && _voice == take) {
         setState(() {
@@ -348,19 +357,19 @@ class _ChatComposerState extends State<ChatComposer>
     final colors = Theme.of(context).colorScheme;
     final ready = widget.session.ready;
     final voiceLabel = switch (_phase) {
-      _VoicePhase.idle => '语音输入',
-      _VoicePhase.permission => '等待麦克风权限',
-      _VoicePhase.recording => '结束录音并转写',
-      _VoicePhase.transcribing => '正在转写',
+      _VoicePhase.idle => context.tr('语音输入'),
+      _VoicePhase.permission => context.tr('等待麦克风权限'),
+      _VoicePhase.recording => context.tr('结束录音并转写'),
+      _VoicePhase.transcribing => context.tr('正在转写'),
     };
     final status =
         _error ??
         (_picking
-            ? '正在读取附件…'
+            ? context.tr('正在读取附件…')
             : _uploadingName != null
-            ? '正在上传 $_uploadingName'
+            ? context.tr('正在上传 {0}', [_uploadingName])
             : _phase == _VoicePhase.recording
-            ? '正在录音'
+            ? context.tr('正在录音')
             : _phase != _VoicePhase.idle
             ? voiceLabel
             : null);
@@ -403,7 +412,9 @@ class _ChatComposerState extends State<ChatComposer>
                         overflow: TextOverflow.ellipsis,
                       ),
                     ),
-                    deleteButtonTooltipMessage: '移除 ${item.name}',
+                    deleteButtonTooltipMessage: context.tr('移除 {0}', [
+                      item.name,
+                    ]),
                     onDeleted: _busy
                         ? null
                         : () => setState(() {
@@ -438,7 +449,7 @@ class _ChatComposerState extends State<ChatComposer>
                 ),
                 if (_voice != null)
                   IconButton(
-                    tooltip: '取消语音输入',
+                    tooltip: context.tr('取消语音输入'),
                     visualDensity: VisualDensity.compact,
                     onPressed: _voice!.cancel,
                     icon: const Icon(Icons.close, size: 18),
@@ -453,7 +464,7 @@ class _ChatComposerState extends State<ChatComposer>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    tooltip: '添加附件',
+                    tooltip: context.tr('添加附件'),
                     onPressed:
                         ready &&
                             !_busy &&
@@ -465,7 +476,7 @@ class _ChatComposerState extends State<ChatComposer>
                   if (widget.showConnect && ready)
                     TextButton(
                       onPressed: widget.onSettings,
-                      child: const Text('去连接'),
+                      child: Text(context.tr('去连接')),
                     ),
                 ],
               ),
@@ -483,8 +494,8 @@ class _ChatComposerState extends State<ChatComposer>
                     height: 1.45,
                     color: colors.onSurface,
                   ),
-                  decoration: const InputDecoration(
-                    hintText: '想说点什么？',
+                  decoration: InputDecoration(
+                    hintText: context.tr('想说点什么？'),
                     hintMaxLines: 1,
                     maintainHintSize: false,
                     counterText: '',
@@ -520,7 +531,7 @@ class _ChatComposerState extends State<ChatComposer>
                     ),
                   ),
                   IconButton.filled(
-                    tooltip: '发送消息',
+                    tooltip: context.tr('发送消息'),
                     onPressed:
                         ready &&
                             !_busy &&

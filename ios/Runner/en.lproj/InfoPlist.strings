@@ -1,0 +1,14 @@
+"NSMicrophoneUsageDescription" = "Record the voice input you start and turn it into an editable message draft.";
+"NSCameraUsageDescription" = "Scan the QR code in the admin panel to pair this device.";
+"NSScreenCaptureUsageDescription" = "With your permission, capture periodic screenshots while you use other apps and sync them to your connected Purin service.";
+"NSCalendarsUsageDescription" = "Use the calendar connector to find events or create meetings in this conversation.";
+"NSCalendarsFullAccessUsageDescription" = "Find events or create meetings through your enabled connection and return results to the connected service.";
+"NSRemindersUsageDescription" = "Use the connected service to view, create, and complete reminders you authorize.";
+"NSRemindersFullAccessUsageDescription" = "Use the connected service to view, create, and complete reminders you authorize.";
+"NSContactsUsageDescription" = "Look up authorized contacts by name and return matching phone numbers and email addresses to the connected service.";
+"NSPhotoLibraryUsageDescription" = "Find authorized photos and screenshots, return capture times and dimensions to the connected service, and preview them on this device.";
+"NSAppleMusicUsageDescription" = "Use the Apple Music connector to search the catalog and control playback at your request.";
+"NSHealthShareUsageDescription" = "Summarize selected step counts, sleep, and workouts. Review the summary and receiving service before each share.";
+"NSLocationWhenInUseUsageDescription" = "Get your location once through a connector you enable, or build an activity timeline using your location collection settings.";
+"NSLocationAlwaysAndWhenInUseUsageDescription" = "With background location enabled, Purin can periodically collect location while locked or in the background and record Wi-Fi information according to your settings.";
+"NSLocalNetworkUsageDescription" = "Connect to the Purin agent you configured on your local network.";

@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import '../l10n/app_language.dart';
 
 import '../data/schedule.dart';
 
-const _weekdays = '一二三四五六日';
+const _chineseWeekdays = '一二三四五六日';
+
+DateTime _weekday(int index) => DateTime(2024, 1, 1 + index);
 
 class _Mark extends StatelessWidget {
   const _Mark({required this.notice, required this.color});
@@ -49,9 +53,11 @@ class ScheduleDatePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final language = context.appLanguage;
+    final tag = language.locale.toLanguageTag();
     final today = DateUtils.dateOnly(DateTime.now());
     final quiet = TextStyle(fontSize: 12, color: colors.onSurfaceVariant);
-    final toggle = month ? '收起月历' : '展开月历';
+    final toggle = month ? context.tr('收起月历') : context.tr('展开月历');
     final first = DateTime(
       start.year,
       start.month,
@@ -88,9 +94,16 @@ class ScheduleDatePicker extends StatelessWidget {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('${selected.year}年${selected.month}月', style: quiet),
                       Text(
-                        '星期${_weekdays[selected.weekday - 1]}',
+                        language == AppLanguage.chinese
+                            ? '${selected.year}年${selected.month}月'
+                            : DateFormat.yMMMM(tag).format(selected),
+                        style: quiet,
+                      ),
+                      Text(
+                        language == AppLanguage.chinese
+                            ? '星期${_chineseWeekdays[selected.weekday - 1]}'
+                            : DateFormat.EEEE(tag).format(selected),
                         style: const TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w500,
@@ -104,7 +117,7 @@ class ScheduleDatePicker extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   IconButton(
-                    tooltip: month ? '上个月' : '上一周',
+                    tooltip: month ? context.tr('上个月') : context.tr('上一周'),
                     onPressed: () => onMove(-1),
                     icon: const Icon(Icons.chevron_left_rounded, size: 18),
                   ),
@@ -115,10 +128,10 @@ class ScheduleDatePicker extends StatelessWidget {
                       foregroundColor: colors.onSurfaceVariant,
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                     ),
-                    child: const Text('今天'),
+                    child: Text(context.tr('今天')),
                   ),
                   IconButton(
-                    tooltip: month ? '下个月' : '下一周',
+                    tooltip: month ? context.tr('下个月') : context.tr('下一周'),
                     onPressed: () => onMove(1),
                     icon: const Icon(Icons.chevron_right_rounded, size: 18),
                   ),
@@ -132,13 +145,17 @@ class ScheduleDatePicker extends StatelessWidget {
             children: [
               TableRow(
                 children: [
-                  for (final day in _weekdays.split(''))
+                  for (var i = 0; i < 7; i++)
                     Center(
                       child: FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
-                          day,
-                          semanticsLabel: '星期$day',
+                          language == AppLanguage.chinese
+                              ? _chineseWeekdays[i]
+                              : DateFormat.E(tag).format(_weekday(i)),
+                          semanticsLabel: language == AppLanguage.chinese
+                              ? '星期${_chineseWeekdays[i]}'
+                              : DateFormat.EEEE(tag).format(_weekday(i)),
                           style: quiet,
                         ),
                       ),
@@ -172,11 +189,11 @@ class ScheduleDatePicker extends StatelessWidget {
                 children: [
                   _Mark(notice: false, color: colors.onSurfaceVariant),
                   const SizedBox(width: 5),
-                  Text('安排', style: quiet),
+                  Text(context.tr('安排'), style: quiet),
                   const SizedBox(width: 12),
                   _Mark(notice: true, color: colors.onSurfaceVariant),
                   const SizedBox(width: 5),
-                  Text('通知', style: quiet),
+                  Text(context.tr('通知'), style: quiet),
                 ],
               ),
               Tooltip(
@@ -227,7 +244,9 @@ class ScheduleDatePicker extends StatelessWidget {
       selected: chosen,
       excludeSemantics: true,
       label:
-          '${day.year}年${day.month}月${day.day}日${isToday ? '，今天' : ''}${entries == null || outside ? '' : '，$agenda项安排'}${notices > 0 ? '，$notices条通知' : ''}',
+          '${context.appLanguage.date(day)}${isToday ? context.tr('，今天') : ''}'
+          '${entries == null || outside ? '' : context.tr('，{0}项安排', [agenda])}'
+          '${notices > 0 ? context.tr('，{0}条通知', [notices]) : ''}',
       onTap: () => onSelect(day),
       child: InkWell(
         borderRadius: BorderRadius.circular(8),

@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="agent_reminders">Agent 消息提醒</string>
+    <string name="activity_collection">移动端信息采集</string>
+    <string name="recording_location">正在定时采集位置</string>
+    <string name="recording_app_activity">正在记录前台应用活动</string>
+    <string name="collection_settings">可在「信息采集」中调整或关闭。</string>
+    <string name="periodic_screenshots">定时截图</string>
+    <string name="capturing_foreground">Purin 正在采集前台应用截图</string>
+    <string name="screenshot_timing">同一应用连续停留 10 分钟后截取一次</string>
+    <string name="stop_sharing">停止共享</string>
+    <string name="assistant_live">助手实时胶囊</string>
+    <string name="today_summary">今日通知与安排</string>
+    <string name="today_offline">连接后可查看今天的内容</string>
+    <string name="today_loading">正在读取今天的内容…</string>
+</resources>

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart'
     show ChangeNotifier, ThemeMode, ValueNotifier;
+import '../l10n/app_language.dart';
 import 'agent_api.dart';
 import 'mobile_terminal_tools.dart';
 import 'mobile_connectors.dart';
@@ -39,22 +40,22 @@ class MobileSession extends ChangeNotifier {
   Future<String?> setMobileConnector(MobileConnector item, bool enabled) async {
     final conn = connection;
     if (!connectorSupported(item)) {
-      return '此连接器仅可在 ${item.platform.label} 设备上启用。';
+      return language.value.text('此连接器仅可在 {0} 设备上启用。', [item.platform.label]);
     }
     if (!canEnableConnectors || conn == null) {
-      return '请先通过 HTTPS 或本机回环地址连接服务。';
+      return language.value.text('请先通过 HTTPS 或本机回环地址连接服务。');
     }
     if (enabled && !await connectors.authorize(item, conn.scope)) {
       return item == MobileConnector.sms
-          ? '系统未授予短信读取权限。部分安装渠道限制此权限。'
+          ? language.value.text('系统未授予短信读取权限。部分安装渠道限制此权限。')
           : connectors.platform == ConnectorPlatform.ios
-          ? '尚未获得授权，可在 iPhone 的「设置 → 隐私与安全性」中调整。'
-          : '尚未获得系统授权。';
+          ? language.value.text('尚未获得授权，可在 iPhone 的「设置 → 隐私与安全性」中调整。')
+          : language.value.text('尚未获得系统授权。');
     }
     String? issue;
     await _run(() async {
       if (connection != conn) {
-        issue = '连接已更改，请重试。';
+        issue = language.value.text('连接已更改，请重试。');
         return;
       }
       final previous = _tools.toJson();
@@ -67,7 +68,7 @@ class MobileSession extends ChangeNotifier {
         await _save();
       } catch (_) {
         _tools = MobileTerminalTools(previous, connectors.platform);
-        issue = '无法保存连接器设置，请重试。';
+        issue = language.value.text('无法保存连接器设置，请重试。');
         return;
       }
       try {
@@ -98,6 +99,22 @@ class MobileSession extends ChangeNotifier {
   int _captureRevision = 0;
   int _retrySeconds = 0;
   DateTime? _retryAfter;
+  final language = ValueNotifier(AppLanguage.chinese);
+
+  Future<void> restoreLanguage() async {
+    try {
+      final saved = await store.readLanguage();
+      if (!_disposed) language.value = saved;
+    } catch (_) {
+      if (!_disposed) language.value = AppLanguage.chinese;
+    }
+  }
+
+  Future<void> setLanguage(AppLanguage next) async {
+    await store.saveLanguage(next);
+    if (!_disposed) language.value = next;
+  }
+
   final themeMode = ValueNotifier(ThemeMode.light);
 
   Future<void> restoreTheme() async {
@@ -382,24 +399,26 @@ class MobileSession extends ChangeNotifier {
     Connection? expectedConnection,
   }) async {
     final target = expectedConnection ?? connection;
-    if (target == null) throw StateError('请先连接设备');
+    if (target == null) throw StateError(language.value.text('请先连接设备'));
     if (images.length + documents.length > 4 ||
         images.length != imageNames.length) {
-      throw const FormatException('每条消息最多可添加 4 个附件');
+      throw FormatException(language.value.text('每条消息最多可添加 4 个附件'));
     }
     final message = text.trim();
     if (message.isEmpty && images.isEmpty && documents.isEmpty) return;
     var saved = false;
     await _run(() async {
-      if (connection != target) throw StateError('设备连接已更改，请重新发送');
+      if (connection != target) {
+        throw StateError(language.value.text('设备连接已更改，请重新发送'));
+      }
       final entry = <String, dynamic>{
         'id': newEventId(),
         'role': 'user',
         'text': message.isNotEmpty
             ? message
             : documents.isNotEmpty
-            ? '请阅读附件。'
-            : '请描述图片内容。',
+            ? language.value.text('请阅读附件。')
+            : language.value.text('请描述图片内容。'),
         if (images.isNotEmpty) 'images': images,
         if (imageNames.isNotEmpty) 'image_names': imageNames,
         if (documents.isNotEmpty) 'documents': documents,
@@ -416,7 +435,7 @@ class MobileSession extends ChangeNotifier {
       _notify();
       await _submit(entry);
     });
-    if (!saved) throw StateError(error ?? '消息未保存，请重试');
+    if (!saved) throw StateError(error ?? language.value.text('消息未保存，请重试'));
   }
 
   Future<void> retry(Json entry) => _run(() async {
@@ -440,7 +459,7 @@ class MobileSession extends ChangeNotifier {
     String answerText = '',
   }) async {
     final conn = connection;
-    if (conn == null) throw StateError('请先连接设备');
+    if (conn == null) throw StateError(language.value.text('请先连接设备'));
     try {
       await api.request(
         conn,
@@ -454,10 +473,10 @@ class MobileSession extends ChangeNotifier {
       if (e.status == 409) {
         questions = questions.where((q) => q.id != id).toList();
         _notify();
-        throw StateError('该提问已在其他设备处理');
+        throw StateError(language.value.text('该提问已在其他设备处理'));
       }
       if (e.status == 400) {
-        throw StateError('请至少选择一个选项或填写回答内容');
+        throw StateError(language.value.text('请至少选择一个选项或填写回答内容'));
       }
       rethrow;
     }
@@ -465,7 +484,7 @@ class MobileSession extends ChangeNotifier {
 
   Future<void> dismissQuestion(String id) async {
     final conn = connection;
-    if (conn == null) throw StateError('请先连接设备');
+    if (conn == null) throw StateError(language.value.text('请先连接设备'));
     try {
       await api.request(
         conn,
@@ -479,7 +498,7 @@ class MobileSession extends ChangeNotifier {
       if (e.status == 409) {
         questions = questions.where((q) => q.id != id).toList();
         _notify();
-        throw StateError('该提问已在其他设备处理');
+        throw StateError(language.value.text('该提问已在其他设备处理'));
       }
       rethrow;
     }
@@ -632,7 +651,11 @@ class MobileSession extends ChangeNotifier {
       _pendingUsage = status['usagePending'] as int? ?? 0;
       if (status['locationLatest'] case final String raw) {
         final fix = LocationFix.fromRecord(jsonDecode(raw) as Json);
-        if (fix != null) lastLocationLabel = '定位误差约 ${fix.accuracy.ceil()} 米';
+        if (fix != null) {
+          lastLocationLabel = language.value.text('定位误差约 {0} 米', [
+            fix.accuracy.ceil(),
+          ]);
+        }
       }
       if (usageEnabled && usageAccess == 'granted') {
         if (status['usageLatest'] case final String latest) {
@@ -669,7 +692,7 @@ class MobileSession extends ChangeNotifier {
       backgroundLocation = false;
       backgroundUsage = false;
       _pendingUsage = 0;
-      signalError = '无法读取系统采集状态：$e';
+      signalError = language.value.text('无法读取系统采集状态：{0}', [e]);
     }
   }
 
@@ -736,7 +759,7 @@ class MobileSession extends ChangeNotifier {
       pendingScreenshots = result['pending'] as int? ?? 0;
     } catch (e) {
       screenshotAccess = 'unavailable';
-      screenshotError = '无法连接系统截屏服务：$e';
+      screenshotError = language.value.text('无法连接系统截屏服务：{0}', [e]);
     }
   }
 
@@ -779,7 +802,7 @@ class MobileSession extends ChangeNotifier {
       await screenshots.request();
       await _configureScreenshots();
     } catch (e) {
-      screenshotError = '未能开始共享屏幕：$e';
+      screenshotError = language.value.text('未能开始共享屏幕：{0}', [e]);
     }
   }
 
@@ -822,7 +845,7 @@ class MobileSession extends ChangeNotifier {
         );
         if (!valid()) return;
         if (result['event_id'] is! String) {
-          throw const FormatException('截图回执缺少事件 ID');
+          throw FormatException(language.value.text('截图回执缺少事件 ID'));
         }
         await screenshots.ack(conn.scope, id);
         if (!valid()) return;
@@ -832,7 +855,7 @@ class MobileSession extends ChangeNotifier {
       }
     } catch (e) {
       if (valid()) {
-        screenshotError = '截图待重试：$e';
+        screenshotError = language.value.text('截图待重试：{0}', [e]);
         _retrySeconds = _retrySeconds == 0
             ? 5
             : (_retrySeconds * 2).clamp(5, 120);
@@ -850,7 +873,7 @@ class MobileSession extends ChangeNotifier {
       await signals.request(source);
       await _refreshSignals();
     } catch (e) {
-      signalError = '无法请求系统权限：$e';
+      signalError = language.value.text('无法请求系统权限：{0}', [e]);
     }
   }
 
@@ -868,7 +891,7 @@ class MobileSession extends ChangeNotifier {
     try {
       await signals.settings(source);
     } catch (e) {
-      signalError = '无法打开系统设置：$e';
+      signalError = language.value.text('无法打开系统设置：{0}', [e]);
     }
   });
 
@@ -901,7 +924,7 @@ class MobileSession extends ChangeNotifier {
             frame,
           );
           if (receipt['event_id'] is! String) {
-            throw const FormatException('截图缺少活动回执');
+            throw FormatException(language.value.text('截图缺少活动回执'));
           }
           lastUsageLabel = observation.description;
           _unacknowledged.add(id);
@@ -915,7 +938,9 @@ class MobileSession extends ChangeNotifier {
         if (location && row['source'] == 'location') {
           final fix = LocationFix.fromRecord(row);
           if (fix != null) {
-            lastLocationLabel = '定位误差约 ${fix.accuracy.ceil()} 米';
+            lastLocationLabel = language.value.text('定位误差约 {0} 米', [
+              fix.accuracy.ceil(),
+            ]);
             pending.add({
               'source': 'location',
               'path': 'perceptions',
@@ -940,7 +965,7 @@ class MobileSession extends ChangeNotifier {
       _unacknowledged.clear();
       await _save();
     } catch (e) {
-      signalError = '采集记录同步失败：$e';
+      signalError = language.value.text('采集记录同步失败：{0}', [e]);
     }
   }
 
@@ -1009,6 +1034,7 @@ class MobileSession extends ChangeNotifier {
     screenshots.onChange(null);
     _cancelScreenshotUpload();
     _timer?.cancel();
+    language.dispose();
     themeMode.dispose();
     inbox.dispose();
     super.dispose();

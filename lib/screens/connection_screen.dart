@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../l10n/app_language.dart';
 import 'pairing_scanner.dart';
 import '../data/agent_api.dart';
 import '../data/mobile_session.dart';
@@ -14,18 +15,19 @@ class ConnectionScreen extends StatelessWidget {
   const ConnectionScreen({super.key, required this.session});
   final MobileSession session;
 
-  String _themeLabel(ThemeMode mode) => mode == ThemeMode.dark ? '深色' : '浅色';
+  String _themeLabel(BuildContext context, ThemeMode mode) =>
+      mode == ThemeMode.dark ? context.tr('深色') : context.tr('浅色');
 
-  String _collectionSummary(MobileSession s) {
-    if (s.connection == null) return '连接服务后可配置采集项';
+  String _collectionSummary(BuildContext context, MobileSession s) {
+    if (s.connection == null) return context.tr('连接服务后可配置采集项');
     final active = [
-      if (s.collecting) '前台应用活动',
-      if (s.locationEnabled) '定时位置',
+      if (s.collecting) context.tr('前台应用活动'),
+      if (s.locationEnabled) context.tr('定时位置'),
       if (s.locationEnabled && s.networkEnabled) 'Wi-Fi',
-      if (s.screenshots.supported && s.screenshotsEnabled) '截屏',
+      if (s.screenshots.supported && s.screenshotsEnabled) context.tr('截屏'),
     ];
-    if (active.isEmpty) return '未开启任何采集项';
-    return '已开启 · ${active.join(' / ')}';
+    if (active.isEmpty) return context.tr('未开启任何采集项');
+    return context.tr('已开启 · {0}', [active.join(' / ')]);
   }
 
   Future<void> _push(BuildContext context, Widget page) =>
@@ -35,7 +37,7 @@ class ConnectionScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     return AtmosphereScaffold(
-      title: '设置',
+      title: context.tr('设置'),
       body: SafeArea(
         top: false,
         child: Center(
@@ -44,78 +46,79 @@ class ConnectionScreen extends StatelessWidget {
             child: ListenableBuilder(
               listenable: session,
               builder: (context, _) {
-                if (!session.ready || session.installation == null) {
-                  return Center(
-                    child: Text(
-                      session.error ?? '正在读取设备身份…',
-                      style: TextStyle(color: colors.onSurfaceVariant),
-                    ),
-                  );
-                }
                 final conn = session.connection;
                 final connected = conn != null;
                 final connSubtitle = connected
-                    ? '已连接 · ${conn.deviceName}'
-                    : '未连接，点击配对设备';
+                    ? context.tr('已连接 · {0}', [conn.deviceName])
+                    : context.tr('未连接，点击配对设备');
 
                 return ListView(
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 40),
                   children: [
-                    SettingsSection(
-                      title: '设备与采集',
-                      children: [
-                        SettingsTile(
-                          leading: _CategoryIcon(
-                            icon: Icons.cable_rounded,
-                            highlight: connected,
+                    if (!session.ready || session.installation == null)
+                      Text(
+                        context.tr(session.error ?? '正在读取设备身份…'),
+                        style: TextStyle(color: colors.onSurfaceVariant),
+                      )
+                    else ...[
+                      SettingsSection(
+                        title: context.tr('设备与采集'),
+                        children: [
+                          SettingsTile(
+                            leading: _CategoryIcon(
+                              icon: Icons.cable_rounded,
+                              highlight: connected,
+                            ),
+                            title: context.tr('设备配对'),
+                            subtitle: connSubtitle,
+                            showChevron: true,
+                            onTap: () => _push(
+                              context,
+                              _ConnectionDetailScreen(session: session),
+                            ),
                           ),
-                          title: '设备配对',
-                          subtitle: connSubtitle,
-                          showChevron: true,
-                          onTap: () => _push(
-                            context,
-                            _ConnectionDetailScreen(session: session),
+                          SettingsTile(
+                            leading: const _CategoryIcon(
+                              icon: Icons.sensors_rounded,
+                            ),
+                            title: context.tr('信息采集'),
+                            subtitle: _collectionSummary(context, session),
+                            showChevron: true,
+                            onTap: () => _push(
+                              context,
+                              _CollectionSettingsScreen(session: session),
+                            ),
                           ),
-                        ),
-                        SettingsTile(
-                          leading: const _CategoryIcon(
-                            icon: Icons.sensors_rounded,
-                          ),
-                          title: '信息采集',
-                          subtitle: _collectionSummary(session),
-                          showChevron: true,
-                          onTap: () => _push(
-                            context,
-                            _CollectionSettingsScreen(session: session),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
+                        ],
+                      ),
+                      const SizedBox(height: 24),
 
-                    SettingsSection(
-                      title: '能力扩展',
-                      children: [
-                        SettingsTile(
-                          leading: const _CategoryIcon(
-                            icon: Icons.extension_outlined,
+                      SettingsSection(
+                        title: context.tr('能力扩展'),
+                        children: [
+                          SettingsTile(
+                            leading: const _CategoryIcon(
+                              icon: Icons.extension_outlined,
+                            ),
+                            title: context.tr('连接器'),
+                            subtitle:
+                                session.connectors.platform.catalog.isEmpty
+                                ? context.tr('查看 Android 与 iOS 连接器')
+                                : context.tr('管理本机的 {0} 连接器', [
+                                    session.connectors.platform.label,
+                                  ]),
+                            showChevron: true,
+                            onTap: () => _push(
+                              context,
+                              MobileConnectorsScreen(session: session),
+                            ),
                           ),
-                          title: '连接器',
-                          subtitle: session.connectors.platform.catalog.isEmpty
-                              ? '查看 Android 与 iOS 连接器'
-                              : '管理本机的 ${session.connectors.platform.label} 连接器',
-                          showChevron: true,
-                          onTap: () => _push(
-                            context,
-                            MobileConnectorsScreen(session: session),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
+                        ],
+                      ),
+                      const SizedBox(height: 24),
+                    ],
                     SettingsSection(
-                      title: '通用',
+                      title: context.tr('通用'),
                       children: [
                         ValueListenableBuilder<ThemeMode>(
                           valueListenable: session.themeMode,
@@ -123,10 +126,10 @@ class ConnectionScreen extends StatelessWidget {
                             leading: const _CategoryIcon(
                               icon: Icons.settings_outlined,
                             ),
-                            title: '应用设置',
-                            subtitle: '切换浅色或深色界面主题',
+                            title: context.tr('应用设置'),
+                            subtitle: context.tr('选择界面主题和语言'),
                             trailing: Text(
-                              _themeLabel(mode),
+                              _themeLabel(context, mode),
                               style: TextStyle(
                                 fontSize: 13.5,
                                 color: colors.onSurfaceVariant,
@@ -144,7 +147,7 @@ class ConnectionScreen extends StatelessWidget {
                             leading: const _CategoryIcon(
                               icon: Icons.bookmarks_outlined,
                             ),
-                            title: '记忆',
+                            title: context.tr('记忆'),
                             showChevron: true,
                             onTap: () async {
                               session.page('记忆');
@@ -366,16 +369,18 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
         final conn = session.connection;
         final connected = conn != null;
         final showForm = !connected || _editing;
-        final platform = DevicePlatform.current?.label ?? '未知';
+        final platform = DevicePlatform.current?.label ?? context.tr('未知');
         final healthy = session.error == null;
 
         return AtmosphereScaffold(
-          title: connected && _editing ? '编辑连接' : '设备配对',
+          title: connected && _editing
+              ? context.tr('编辑连接')
+              : context.tr('设备配对'),
           actions: [
             if (connected && _editing)
               TextButton(
                 onPressed: _working ? null : _cancelEditing,
-                child: const Text('取消'),
+                child: Text(context.tr('取消')),
               ),
           ],
           body: SafeArea(
@@ -390,7 +395,7 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                   children: [
                     if (!showForm) ...[
                       SettingsSection(
-                        title: '当前连接',
+                        title: context.tr('当前连接'),
                         children: [
                           Padding(
                             padding: const EdgeInsets.fromLTRB(20, 14, 20, 14),
@@ -449,9 +454,12 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                               ],
                             ),
                           ),
-                          _FactRow(label: '设备平台', value: platform),
-                          _FactRow(label: '设备 ID', value: conn.deviceId),
-                          _FactRow(label: '服务地址', value: conn.url),
+                          _FactRow(label: context.tr('设备平台'), value: platform),
+                          _FactRow(
+                            label: context.tr('设备 ID'),
+                            value: conn.deviceId,
+                          ),
+                          _FactRow(label: context.tr('服务地址'), value: conn.url),
                         ],
                       ),
                       const SizedBox(height: 18),
@@ -465,12 +473,15 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                             ),
                             foregroundColor: colors.primary,
                           ),
-                          child: const Text('编辑连接'),
+                          child: Text(context.tr('编辑连接')),
                         ),
                       ),
                     ] else ...[
                       AppleSegmentedControl<bool>(
-                        items: const [(false, '配对链接'), (true, '手动配置')],
+                        items: [
+                          (false, context.tr('配对链接')),
+                          (true, context.tr('手动配置')),
+                        ],
                         selected: _manual,
                         enabled: !_working,
                         onChanged: (manual) => setState(() {
@@ -481,14 +492,16 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                       const SizedBox(height: 18),
                       if (!_manual) ...[
                         SettingsSection(
-                          title: '配对设备',
-                          footer: '在后端管理面板点击「添加设备」，粘贴一次性配对链接或直接扫码即可自动完成配置。',
+                          title: context.tr('配对设备'),
+                          footer: context.tr(
+                            '在后端管理面板点击「添加设备」，粘贴一次性配对链接或直接扫码即可自动完成配置。',
+                          ),
                           children: [
                             _InlineField(
-                              label: '配对链接',
+                              label: context.tr('配对链接'),
                               keyboardType: TextInputType.url,
                               controller: _pairValue,
-                              hintText: '粘贴 https://... 配对链接',
+                              hintText: context.tr('粘贴 https://... 配对链接'),
                               enabled: !_working,
                               onChanged: (value) {
                                 if (pairingAddress(value) != null) _connect();
@@ -512,8 +525,8 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                                   color: colors.primary,
                                 ),
                               ),
-                              title: '扫码配对',
-                              subtitle: '使用相机扫描管理面板上的二维码',
+                              title: context.tr('扫码配对'),
+                              subtitle: context.tr('使用相机扫描管理面板上的二维码'),
                               showChevron: true,
                               enabled: !_working && session.ready,
                               onTap: _scan,
@@ -529,16 +542,18 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                                 : _connect,
                             child: _working
                                 ? const CupertinoActivityIndicator(radius: 9)
-                                : const Text('配对并连接'),
+                                : Text(context.tr('配对并连接')),
                           ),
                         ),
                       ] else ...[
                         SettingsSection(
-                          title: '服务与凭据',
-                          footer: '填写后端服务根地址（不含 /v1 或其他路径）、设备标识与访问令牌。',
+                          title: context.tr('服务与凭据'),
+                          footer: context.tr(
+                            '填写后端服务根地址（不含 /v1 或其他路径）、设备标识与访问令牌。',
+                          ),
                           children: [
                             _InlineField(
-                              label: '服务地址',
+                              label: context.tr('服务地址'),
                               controller: _url,
                               hintText: 'https://purin.example',
                               keyboardType: TextInputType.url,
@@ -546,7 +561,7 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                               textInputAction: TextInputAction.next,
                             ),
                             _InlineField(
-                              label: '设备名称',
+                              label: context.tr('设备名称'),
                               controller: _name,
                               hintText: Connection.defaultDeviceName,
                               maxLength: 80,
@@ -554,14 +569,14 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                               textInputAction: TextInputAction.next,
                             ),
                             _InlineField(
-                              label: '设备 ID',
+                              label: context.tr('设备 ID'),
                               controller: _deviceId,
                               hintText: 'mobile-device',
                               enabled: !_working,
                               textInputAction: TextInputAction.next,
                             ),
                             _InlineField(
-                              label: '设备令牌',
+                              label: context.tr('设备令牌'),
                               controller: _token,
                               hintText: 'Bearer token',
                               obscureText: _obscureToken,
@@ -571,7 +586,9 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                                 if (!_working && session.ready) _connect();
                               },
                               trailing: IconButton(
-                                tooltip: _obscureToken ? '显示令牌' : '隐藏令牌',
+                                tooltip: _obscureToken
+                                    ? context.tr('显示令牌')
+                                    : context.tr('隐藏令牌'),
                                 visualDensity: VisualDensity.compact,
                                 onPressed: _working
                                     ? null
@@ -588,7 +605,7 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                               ),
                             ),
                             _InlineReadOnlyField(
-                              label: '设备平台',
+                              label: context.tr('设备平台'),
                               value: platform,
                             ),
                           ],
@@ -602,7 +619,7 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                                 : _connect,
                             child: _working
                                 ? const CupertinoActivityIndicator(radius: 9)
-                                : const Text('验证并保存'),
+                                : Text(context.tr('验证并保存')),
                           ),
                         ),
                       ],
@@ -642,7 +659,7 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                                 const SizedBox(width: 9),
                                 Expanded(
                                   child: Text(
-                                    _feedback!,
+                                    context.tr(_feedback!),
                                     style: TextStyle(
                                       fontSize: 13.5,
                                       color: _connectionError
@@ -765,8 +782,8 @@ class _OnlineDevicesSectionState extends State<_OnlineDevicesSection> {
         ? const Color(0xFF45D4A6)
         : const Color(0xFF16855E);
     final title = !_loading && _error == null
-        ? '在线设备 · ${_devices.length}'
-        : '在线设备';
+        ? context.tr('在线设备 · {0}', [_devices.length])
+        : context.tr('在线设备');
 
     Widget content;
     if (_loading) {
@@ -777,7 +794,7 @@ class _OnlineDevicesSectionState extends State<_OnlineDevicesSection> {
             const CupertinoActivityIndicator(radius: 8.5),
             const SizedBox(width: 10),
             Text(
-              '正在获取在线设备信息…',
+              context.tr('正在获取在线设备信息…'),
               style: TextStyle(fontSize: 14, color: colors.onSurfaceVariant),
             ),
           ],
@@ -787,7 +804,7 @@ class _OnlineDevicesSectionState extends State<_OnlineDevicesSection> {
       content = Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Text(
-          _error!,
+          context.tr(_error!),
           style: TextStyle(fontSize: 14, color: colors.error),
         ),
       );
@@ -795,7 +812,7 @@ class _OnlineDevicesSectionState extends State<_OnlineDevicesSection> {
       content = Padding(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
         child: Text(
-          '当前暂无在线设备',
+          context.tr('当前暂无在线设备'),
           style: TextStyle(fontSize: 14, color: colors.onSurfaceVariant),
         ),
       );
@@ -856,7 +873,7 @@ class _OnlineDevicesSectionState extends State<_OnlineDevicesSection> {
                                 borderRadius: BorderRadius.circular(99),
                               ),
                               child: Text(
-                                '本机',
+                                context.tr('本机'),
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
@@ -869,7 +886,7 @@ class _OnlineDevicesSectionState extends State<_OnlineDevicesSection> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${item.platformLabel} · ${item.deviceId}',
+                        '${context.tr(item.platformLabel)} · ${item.deviceId}',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
@@ -903,7 +920,7 @@ class _OnlineDevicesSectionState extends State<_OnlineDevicesSection> {
                       ),
                       const SizedBox(width: 5),
                       Text(
-                        '在线',
+                        context.tr('在线'),
                         style: TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -955,7 +972,7 @@ class _OnlineDevicesSectionState extends State<_OnlineDevicesSection> {
                 height: 30,
                 child: IconButton(
                   padding: EdgeInsets.zero,
-                  tooltip: '刷新在线设备',
+                  tooltip: context.tr('刷新在线设备'),
                   onPressed: _loading || _refreshing
                       ? null
                       : () => _load(manual: true),
@@ -1007,7 +1024,7 @@ class _ConnectionStatusBadge extends StatelessWidget {
           ),
           const SizedBox(width: 5),
           Text(
-            healthy ? '已连接' : '连接异常',
+            healthy ? context.tr('已连接') : context.tr('连接异常'),
             style: TextStyle(
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
@@ -1130,6 +1147,21 @@ class _AppearanceSettingsScreenState extends State<_AppearanceSettingsScreen> {
   bool _saving = false;
   String? _error;
 
+  Future<void> _setLanguage(AppLanguage language) async {
+    if (_saving || widget.session.language.value == language) return;
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+    try {
+      await widget.session.setLanguage(language);
+    } catch (_) {
+      if (mounted) setState(() => _error = '语言设置未保存，请重试。');
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
   Future<void> _setTheme(ThemeMode mode) async {
     if (_saving || widget.session.themeMode.value == mode) return;
     setState(() {
@@ -1150,7 +1182,7 @@ class _AppearanceSettingsScreenState extends State<_AppearanceSettingsScreen> {
     final colors = Theme.of(context).colorScheme;
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     return AtmosphereScaffold(
-      title: '应用设置',
+      title: context.tr('应用设置'),
       body: SafeArea(
         top: false,
         child: Center(
@@ -1167,8 +1199,8 @@ class _AppearanceSettingsScreenState extends State<_AppearanceSettingsScreen> {
                   padding: const EdgeInsets.fromLTRB(16, 12, 16, 36),
                   children: [
                     SettingsSection(
-                      title: '界面主题',
-                      footer: '外观偏好仅保存在当前设备上，切换后立即生效。',
+                      title: context.tr('界面主题'),
+                      footer: context.tr('外观偏好仅保存在当前设备上，切换后立即生效。'),
                       children: [
                         Padding(
                           padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
@@ -1189,7 +1221,7 @@ class _AppearanceSettingsScreenState extends State<_AppearanceSettingsScreen> {
                                       if (i > 0) const SizedBox(height: 10),
                                       _ThemeOptionCard(
                                         mode: _options[i].mode,
-                                        label: _options[i].label,
+                                        label: context.tr(_options[i].label),
                                         icon: _options[i].icon,
                                         selected: selected == _options[i].mode,
                                         enabled: !_saving,
@@ -1209,7 +1241,7 @@ class _AppearanceSettingsScreenState extends State<_AppearanceSettingsScreen> {
                                     Expanded(
                                       child: _ThemeOptionCard(
                                         mode: _options[i].mode,
-                                        label: _options[i].label,
+                                        label: context.tr(_options[i].label),
                                         icon: _options[i].icon,
                                         selected: selected == _options[i].mode,
                                         enabled: !_saving,
@@ -1239,7 +1271,7 @@ class _AppearanceSettingsScreenState extends State<_AppearanceSettingsScreen> {
                               const SizedBox(width: 10),
                               Expanded(
                                 child: Text(
-                                  active.description,
+                                  context.tr(active.description),
                                   style: TextStyle(
                                     fontSize: 13,
                                     height: 1.45,
@@ -1252,6 +1284,28 @@ class _AppearanceSettingsScreenState extends State<_AppearanceSettingsScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 24),
+                    SettingsSection(
+                      title: context.tr('界面语言'),
+                      children: [
+                        for (final language in AppLanguage.values)
+                          Semantics(
+                            selected: widget.session.language.value == language,
+                            child: SettingsTile(
+                              title: language.label,
+                              enabled: !_saving,
+                              trailing:
+                                  widget.session.language.value == language
+                                  ? Icon(
+                                      Icons.check_rounded,
+                                      color: colors.primary,
+                                    )
+                                  : null,
+                              onTap: () => _setLanguage(language),
+                            ),
+                          ),
+                      ],
+                    ),
                     if (_error != null) ...[
                       const SizedBox(height: 12),
                       Padding(
@@ -1259,7 +1313,7 @@ class _AppearanceSettingsScreenState extends State<_AppearanceSettingsScreen> {
                         child: Semantics(
                           liveRegion: true,
                           child: Text(
-                            _error!,
+                            context.tr(_error!),
                             style: TextStyle(fontSize: 13, color: colors.error),
                           ),
                         ),
@@ -1552,7 +1606,7 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
     final atmo = AppAtmosphere.of(context);
 
     return AtmosphereScaffold(
-      title: '信息采集',
+      title: context.tr('信息采集'),
       body: SafeArea(
         top: false,
         child: Center(
@@ -1573,7 +1627,7 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                           vertical: 16,
                         ),
                         child: Text(
-                          '请先在「设备配对」中配置并验证后端服务，再开启设备信息采集。',
+                          context.tr('请先在「设备配对」中配置并验证后端服务，再开启设备信息采集。'),
                           style: TextStyle(
                             fontSize: 13.5,
                             color: colors.onSurfaceVariant,
@@ -1583,21 +1637,25 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                       const SizedBox(height: 18),
                     ],
                     SettingsSection(
-                      title: session.screenshots.supported ? '应用与截图' : '应用活动',
+                      title: session.screenshots.supported
+                          ? context.tr('应用与截图')
+                          : context.tr('应用活动'),
                       children: [
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _SignalControl(
-                              title: '记录前台应用活动',
+                              title: context.tr('记录前台应用活动'),
                               description:
                                   session.screenshots.platform != 'android'
-                                  ? '记录 Purin 的页面和前后台切换。'
+                                  ? context.tr('记录 Purin 的页面和前后台切换。')
                                   : session.usageEnabled &&
                                         session.usageAccess == 'granted' &&
                                         !session.backgroundUsage
-                                  ? '记录 Purin 活动，其他应用时段会在返回时补传。'
-                                  : '记录 Purin 活动，切走其他应用时同步名称、起止时间和停留时长。',
+                                  ? context.tr('记录 Purin 活动，其他应用时段会在返回时补传。')
+                                  : context.tr(
+                                      '记录 Purin 活动，切走其他应用时同步名称、起止时间和停留时长。',
+                                    ),
                               source: 'usage',
                               enabled: session.collecting,
                               access: session.usageAccess,
@@ -1618,7 +1676,9 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                   children: [
                                     if (session.pendingCollectionCount > 0)
                                       Text(
-                                        '待上传 ${session.pendingCollectionCount} 条',
+                                        context.tr('待上传 {0} 条', [
+                                          session.pendingCollectionCount,
+                                        ]),
                                         style: TextStyle(
                                           color: colors.onSurfaceVariant,
                                           fontSize: 12.5,
@@ -1628,7 +1688,9 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                       if (session.pendingCollectionCount > 0)
                                         const SizedBox(height: 4),
                                       Text(
-                                        '采集上传失败 · ${session.collectionError}',
+                                        context.tr('采集上传失败 · {0}', [
+                                          session.collectionError,
+                                        ]),
                                         style: TextStyle(
                                           fontSize: 12.5,
                                           color: colors.error,
@@ -1636,7 +1698,7 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                       ),
                                       const SizedBox(height: 6),
                                       _SubtleActionButton(
-                                        label: '重试上传',
+                                        label: context.tr('重试上传'),
                                         onTap: session.sync,
                                       ),
                                     ],
@@ -1651,17 +1713,21 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                             children: [
                               SettingsSwitchTile(
                                 title: session.screenshots.platform == 'android'
-                                    ? '采集前台应用截图'
-                                    : '定时截屏',
+                                    ? context.tr('采集前台应用截图')
+                                    : context.tr('定时截屏'),
                                 subtitle:
                                     session.screenshotAccess == 'unsupported'
-                                    ? '当前安装包不支持系统屏幕共享。'
+                                    ? context.tr('当前安装包不支持系统屏幕共享。')
                                     : session.screenshotAccess ==
                                           'usageRequired'
-                                    ? '先开启「记录前台应用活动」并授予使用情况访问权。'
+                                    ? context.tr('先开启「记录前台应用活动」并授予使用情况访问权。')
                                     : session.screenshots.platform == 'ios'
-                                    ? '系统共享屏幕后，在使用其他应用时采集画面并上传。iOS 不提供可靠的应用名称。'
-                                    : '屏幕共享期间，同一应用连续在前台满 10 分钟截一次，切走后随该次活动上传。',
+                                    ? context.tr(
+                                        '系统共享屏幕后，在使用其他应用时采集画面并上传。iOS 不提供可靠的应用名称。',
+                                      )
+                                    : context.tr(
+                                        '屏幕共享期间，同一应用连续在前台满 10 分钟截一次，切走后随该次活动上传。',
+                                      ),
                                 value: session.screenshotsEnabled,
                                 onChanged:
                                     !connected ||
@@ -1691,7 +1757,7 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                       if (session.screenshots.platform !=
                                           'android') ...[
                                         Text(
-                                          '截图间隔',
+                                          context.tr('截图间隔'),
                                           style: TextStyle(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w500,
@@ -1700,10 +1766,10 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                         ),
                                         const SizedBox(height: 8),
                                         AppleSegmentedControl<int>(
-                                          items: const [
-                                            (60, '1 分钟'),
-                                            (300, '5 分钟'),
-                                            (900, '15 分钟'),
+                                          items: [
+                                            (60, context.tr('1 分钟')),
+                                            (300, context.tr('5 分钟')),
+                                            (900, context.tr('15 分钟')),
                                           ],
                                           selected: session.screenshotInterval,
                                           onChanged:
@@ -1728,7 +1794,7 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                                 ),
                                                 const SizedBox(width: 6),
                                                 Text(
-                                                  '屏幕共享中',
+                                                  context.tr('屏幕共享中'),
                                                   style: TextStyle(
                                                     fontSize: 13,
                                                     color:
@@ -1742,7 +1808,7 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                             'denied',
                                           ].contains(session.screenshotAccess))
                                             _SubtleActionButton(
-                                              label: '开始系统屏幕共享',
+                                              label: context.tr('开始系统屏幕共享'),
                                               onTap: session
                                                   .startScreenshotCapture,
                                             ),
@@ -1750,7 +1816,9 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                               0) ...[
                                             const SizedBox(width: 12),
                                             Text(
-                                              '待上传截图 ${session.pendingScreenshots} 张',
+                                              context.tr('待上传截图 {0} 张', [
+                                                session.pendingScreenshots,
+                                              ]),
                                               style: TextStyle(
                                                 fontSize: 12.5,
                                                 color: colors.onSurfaceVariant,
@@ -1784,14 +1852,16 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                     ),
                     const SizedBox(height: 24),
                     SettingsSection(
-                      title: '位置与网络',
+                      title: context.tr('位置与网络'),
                       children: [
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             _SignalControl(
-                              title: '定时采集位置',
-                              description: '每 20 分钟采集位置和定位误差，由后端筛选并解析地点。',
+                              title: context.tr('定时采集位置'),
+                              description: context.tr(
+                                '每 20 分钟采集位置和定位误差，由后端筛选并解析地点。',
+                              ),
                               source: 'location',
                               enabled: session.locationEnabled,
                               access: session.locationAccess,
@@ -1812,8 +1882,8 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                   children: [
                                     Text(
                                       session.backgroundLocation
-                                          ? '后台定位已授权'
-                                          : '当前为使用期间定位',
+                                          ? context.tr('后台定位已授权')
+                                          : context.tr('当前为使用期间定位'),
                                       style: TextStyle(
                                         fontSize: 12.5,
                                         color: colors.onSurfaceVariant,
@@ -1821,7 +1891,7 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                     ),
                                     if (!session.backgroundLocation)
                                       _SubtleActionButton(
-                                        label: '允许后台定位',
+                                        label: context.tr('允许后台定位'),
                                         onTap: () =>
                                             session.requestSignalAccess(
                                               'backgroundLocation',
@@ -1833,8 +1903,8 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                           ],
                         ),
                         SettingsSwitchTile(
-                          title: '定时采集网络',
-                          subtitle: '随位置记录 Wi-Fi 连接状态和名称。',
+                          title: context.tr('定时采集网络'),
+                          subtitle: context.tr('随位置记录 Wi-Fi 连接状态和名称。'),
                           value:
                               session.locationEnabled && session.networkEnabled,
                           onChanged: connected && session.locationEnabled
@@ -2007,13 +2077,15 @@ class _SignalControl extends StatelessWidget {
     final systemSettings = access == 'blocked' || access == 'disabled';
     final subtitle = switch (access) {
       'unsupported' when source == 'usage' => description,
-      'unsupported' => '当前设备不支持地点采集。',
-      'disabled' when enabled && source == 'location' => '系统定位服务已关闭。',
-      'blocked' when enabled => '需要在系统设置中允许访问。',
+      'unsupported' => context.tr('当前设备不支持地点采集。'),
+      'disabled' when enabled && source == 'location' => context.tr(
+        '系统定位服务已关闭。',
+      ),
+      'blocked' when enabled => context.tr('需要在系统设置中允许访问。'),
       _ when needsAccess =>
         source == 'usage'
-            ? '正在记录 Purin 活动。授权使用情况访问权后，会同时记录其他应用的使用时段。'
-            : '等待系统授予定位权限。',
+            ? context.tr('正在记录 Purin 活动。授权使用情况访问权后，会同时记录其他应用的使用时段。')
+            : context.tr('等待系统授予定位权限。'),
       _ => description,
     };
     return Column(
@@ -2038,14 +2110,16 @@ class _SignalControl extends StatelessWidget {
               children: [
                 if (needsAccess)
                   _SubtleActionButton(
-                    label: systemSettings ? '打开系统设置' : '前往授权',
+                    label: systemSettings
+                        ? context.tr('打开系统设置')
+                        : context.tr('前往授权'),
                     onTap: () => systemSettings
                         ? session.openSignalSettings(source)
                         : session.requestSignalAccess(source),
                   ),
                 if (enabled && access == 'granted' && lastObservation != null)
                   Text(
-                    '最近记录 · $lastObservation',
+                    context.tr('最近记录 · {0}', [lastObservation]),
                     style: TextStyle(
                       fontSize: 12.5,
                       color: colors.onSurfaceVariant,

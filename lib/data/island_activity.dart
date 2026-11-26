@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import '../l10n/app_language.dart';
 import 'mobile_session.dart';
 import 'schedule.dart';
 
@@ -28,7 +29,11 @@ class IslandActivity {
   bool get watchesToday =>
       _attached && (_android ? _androidFold == _token : tracking);
 
-  static Future<String?> foldAndroid(String owner, bool connected) async {
+  static Future<String?> foldAndroid(
+    String owner,
+    bool connected,
+    AppLanguage language,
+  ) async {
     if (!_android) return null;
     _androidFold = owner;
     String? result;
@@ -36,6 +41,7 @@ class IslandActivity {
       result = await _channel.invokeMethod<String>('fold', {
         'owner': owner,
         'status': connected ? '待机' : '未连接',
+        'language': language.locale.toLanguageTag(),
       });
       return result;
     } on MissingPluginException {
@@ -101,10 +107,12 @@ class IslandActivity {
           items.lastOrNull;
       if (e != null) {
         final title = (e.notification?.title ?? e.title).characters.take(35);
-        lines.add('${notices ? '通知' : '安排'}  ${islandTime(e.at)}  $title');
+        lines.add(
+          '${notices ? session.language.value.text('通知') : session.language.value.text('安排')}  ${islandTime(e.at)}  $title',
+        );
       }
     }
-    if (lines.isEmpty) lines.add('今天没有通知或安排');
+    if (lines.isEmpty) lines.add(session.language.value.text('今天没有通知或安排'));
     _dayEnd = DateTime(day.year, day.month, day.day + 1).millisecondsSinceEpoch;
     _lines = lines;
     _publish('status');
@@ -112,7 +120,7 @@ class IslandActivity {
 
   void todayUnavailable() {
     if (!_android || !watchesToday) return;
-    _lines = ['今日内容暂时无法读取'];
+    _lines = [session.language.value.text('今日内容暂时无法读取')];
     _publish('status');
   }
 
@@ -124,6 +132,7 @@ class IslandActivity {
         'owner': _token,
         'phase': phase == 'status' ? 'working' : phase,
         'status': _status,
+        'language': session.language.value.locale.toLanguageTag(),
         'lines': _lines,
         'dayEnd': _dayEnd,
       }),

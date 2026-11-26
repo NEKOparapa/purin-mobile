@@ -29,3 +29,11 @@ import UserNotifications
     island.register(engineBridge.applicationRegistrar.messenger())
   }
 }
+
+// Read the same device preference as Flutter when presenting a native dialog.
+enum PurinLanguage {
+  static var isEnglish: Bool {
+    guard let directory = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first else { return false }
+    return (try? String(contentsOf: directory.appendingPathComponent("language"), encoding: .utf8)) == "en"
+  }
+}

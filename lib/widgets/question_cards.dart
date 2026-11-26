@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../l10n/app_language.dart';
 import '../data/question.dart';
 import 'app_theme.dart';
 import 'shared.dart';
@@ -180,7 +181,9 @@ class _QuestionCardState extends State<_QuestionCard> {
               ),
               const SizedBox(width: 7),
               Text(
-                widget.item.multiSelect ? '待回答 · 可多选' : '待回答',
+                widget.item.multiSelect
+                    ? context.tr('待回答 · 可多选')
+                    : context.tr('待回答'),
                 style: TextStyle(
                   fontSize: 12.5,
                   fontWeight: FontWeight.w600,
@@ -190,7 +193,7 @@ class _QuestionCardState extends State<_QuestionCard> {
               const Spacer(),
               if (widget.total > 1) ...[
                 _MiniIconTap(
-                  tooltip: '上一条',
+                  tooltip: context.tr('上一条'),
                   icon: Icons.chevron_left_rounded,
                   onTap: widget.onPrev,
                 ),
@@ -206,14 +209,14 @@ class _QuestionCardState extends State<_QuestionCard> {
                   ),
                 ),
                 _MiniIconTap(
-                  tooltip: '下一条',
+                  tooltip: context.tr('下一条'),
                   icon: Icons.chevron_right_rounded,
                   onTap: widget.onNext,
                 ),
                 const SizedBox(width: 4),
               ],
               _MiniIconTap(
-                tooltip: '忽略提问',
+                tooltip: context.tr('忽略提问'),
                 icon: Icons.close_rounded,
                 onTap: _submitting ? null : _dismiss,
               ),
@@ -277,8 +280,8 @@ class _QuestionCardState extends State<_QuestionCard> {
                     decoration: InputDecoration(
                       isDense: true,
                       hintText: widget.item.options.isNotEmpty
-                          ? '补充说明（可选）'
-                          : '输入你的回答…',
+                          ? context.tr('补充说明（可选）')
+                          : context.tr('输入你的回答…'),
                       contentPadding: const EdgeInsets.symmetric(
                         horizontal: 14,
                         vertical: 10,
@@ -304,7 +307,7 @@ class _QuestionCardState extends State<_QuestionCard> {
               else
                 Expanded(
                   child: Text(
-                    '选择上方选项后提交',
+                    context.tr('选择上方选项后提交'),
                     style: TextStyle(
                       fontSize: 12.5,
                       color: colors.onSurfaceVariant,
@@ -329,7 +332,7 @@ class _QuestionCardState extends State<_QuestionCard> {
                   ),
                   child: _submitting
                       ? const CupertinoActivityIndicator(radius: 8)
-                      : const Text('提交'),
+                      : Text(context.tr('提交')),
                 ),
               ),
             ],

@@ -7,6 +7,7 @@ import 'package:file_selector_ios/file_selector_ios.dart';
 import 'package:flutter/foundation.dart';
 import 'package:image/image.dart' as img;
 import 'agent_api.dart';
+import '../l10n/app_language.dart';
 
 class ChatAttachment {
   ChatAttachment._(this.name, this.file, this.jpeg);
@@ -47,7 +48,7 @@ class ChatAttachment {
     final bytes = BytesBuilder(copy: false);
     await for (final chunk in file.openRead()) {
       if (bytes.length + chunk.length > maxBytes) {
-        throw FormatException('$name 超过单个附件 32 MiB 的限制');
+        throw LocalizedFormatException('{0} 超过单个附件 32 MiB 的限制', [name]);
       }
       bytes.add(chunk);
     }
@@ -63,7 +64,7 @@ class ChatAttachment {
       throw const FormatException('文件名无效，请重命名后重试');
     }
     if ((await file.length()) > maxBytes) {
-      throw FormatException('$name 超过单个附件 32 MiB 的限制');
+      throw LocalizedFormatException('{0} 超过单个附件 32 MiB 的限制', [name]);
     }
     if (!RegExp(
       r'\.(jpe?g|png|webp|gif)$',
@@ -104,7 +105,7 @@ class ChatAttachment {
         codec.dispose();
       }
     } catch (_) {
-      throw FormatException('无法读取图片「$name」');
+      throw LocalizedFormatException('无法读取图片「{0}」', [name]);
     }
   }
 }
@@ -129,16 +130,24 @@ Uint8List _encodeJpeg((ByteData, int, int) pixels) {
   }
 }
 
-String chatMediaError(Object error) => switch (error) {
-  FormatException(:final message) || StateError(:final message) => message,
-  ApiError(code: 'asr_key_missing') => '请先在后端配置语音转写密钥',
-  ApiError(code: 'unsupported_file') => '后端无法解析此文件格式',
-  ApiError(code: 'invalid_filename') => '文件名无效，请重命名后重试',
-  ApiError(code: 'file_conversion_failed') => '文件无法解析，请检查文件是否损坏或加密',
-  ApiError(code: 'file_conversion_timeout') => '文件解析超时，请重试',
-  ApiError(code: 'transcription_failed' || 'audio_conversion_failed') =>
-    '语音转写失败，请重试',
-  ApiError(code: 'invalid_wav') => '录音格式无效，请重新录音',
-  ApiError(status: 429) => '后端正忙，请稍后重试',
-  _ => '操作失败，请检查设备连接后重试',
-};
+String chatMediaError(
+  Object error, [
+  AppLanguage language = AppLanguage.chinese,
+]) {
+  if (error is LocalizedFormatException) {
+    return language.text(error.template, error.values);
+  }
+  return language.text(switch (error) {
+    FormatException(:final message) || StateError(:final message) => message,
+    ApiError(code: 'asr_key_missing') => '请先在后端配置语音转写密钥',
+    ApiError(code: 'unsupported_file') => '后端无法解析此文件格式',
+    ApiError(code: 'invalid_filename') => '文件名无效，请重命名后重试',
+    ApiError(code: 'file_conversion_failed') => '文件无法解析，请检查文件是否损坏或加密',
+    ApiError(code: 'file_conversion_timeout') => '文件解析超时，请重试',
+    ApiError(code: 'transcription_failed' || 'audio_conversion_failed') =>
+      '语音转写失败，请重试',
+    ApiError(code: 'invalid_wav') => '录音格式无效，请重新录音',
+    ApiError(status: 429) => '后端正忙，请稍后重试',
+    _ => '操作失败，请检查设备连接后重试',
+  });
+}

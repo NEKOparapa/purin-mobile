@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../l10n/app_language.dart';
 import '../data/demo_data.dart';
 import '../widgets/app_theme.dart';
 import '../widgets/shared.dart';
@@ -21,7 +22,7 @@ class MemoryScreen extends StatefulWidget {
 
 class _MemoryScreenState extends State<MemoryScreen> {
   final _search = TextEditingController();
-  String _query = '', _filter = '全部';
+  String _query = '', _filter = 'all';
 
   @override
   void dispose() {
@@ -123,7 +124,7 @@ class _MemoryScreenState extends State<MemoryScreen> {
                     backgroundColor: atmo.inputFill,
                     foregroundColor: colors.onSurface,
                   ),
-                  child: const Text('关闭'),
+                  child: Text(context.tr('关闭')),
                 ),
               ),
             ],
@@ -136,10 +137,10 @@ class _MemoryScreenState extends State<MemoryScreen> {
   Widget _buildContent(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final atmo = AppAtmosphere.of(context);
-    final rows = memories
+    final rows = localizedMemories(context.appLanguage)
         .where(
           (m) =>
-              (_filter == '全部' || (_filter == '录音') == m.isVoice) &&
+              (_filter == 'all' || (_filter == 'voice') == m.isVoice) &&
               [
                 m.title,
                 m.summary,
@@ -171,7 +172,7 @@ class _MemoryScreenState extends State<MemoryScreen> {
                 style: TextStyle(fontSize: 15, color: colors.onSurface),
                 decoration: InputDecoration(
                   filled: false,
-                  hintText: '搜索记忆、标签或来源…',
+                  hintText: context.tr('搜索记忆、标签或来源…'),
                   prefixIcon: Icon(
                     Icons.search_rounded,
                     size: 20,
@@ -180,7 +181,7 @@ class _MemoryScreenState extends State<MemoryScreen> {
                   suffixIcon: _query.isEmpty
                       ? null
                       : IconButton(
-                          tooltip: '清除',
+                          tooltip: context.tr('清除'),
                           onPressed: () {
                             _search.clear();
                             setState(() => _query = '');
@@ -203,7 +204,11 @@ class _MemoryScreenState extends State<MemoryScreen> {
             ),
             const SizedBox(height: 14),
             AppleSegmentedControl<String>(
-              items: const [('全部', '全部'), ('录音', '录音'), ('对话', '对话')],
+              items: [
+                ('all', context.tr('全部')),
+                ('voice', context.tr('录音')),
+                ('chat', context.tr('对话')),
+              ],
               selected: _filter,
               onChanged: (value) => setState(() => _filter = value),
             ),
@@ -211,7 +216,7 @@ class _MemoryScreenState extends State<MemoryScreen> {
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 10),
               child: Text(
-                '示例记忆',
+                context.tr('示例记忆'),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.w500,
@@ -235,7 +240,7 @@ class _MemoryScreenState extends State<MemoryScreen> {
                     ),
                     const SizedBox(height: 10),
                     Text(
-                      '没有找到相关记忆',
+                      context.tr('没有找到相关记忆'),
                       style: TextStyle(
                         fontSize: 14.5,
                         color: colors.onSurfaceVariant,
@@ -349,7 +354,7 @@ class _MemoryScreenState extends State<MemoryScreen> {
   Widget build(BuildContext context) {
     if (widget.embedded) return _buildContent(context);
     return AtmosphereScaffold(
-      title: '记忆',
+      title: context.tr('记忆'),
       body: SafeArea(top: false, child: _buildContent(context)),
     );
   }

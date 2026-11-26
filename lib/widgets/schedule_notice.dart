@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import '../l10n/app_language.dart';
 
 import '../data/device_inbox.dart';
 
@@ -113,7 +114,10 @@ class NoticeRow extends StatelessWidget {
         onTap: onTap,
         child: ScheduleTimedRow(
           time: time,
-          semanticsLabel: '${unread ? '未读，' : ''}通知时间 $time',
+          semanticsLabel: context.tr('{0}通知时间 {1}', [
+            unread ? context.tr('未读，') : '',
+            time,
+          ]),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -166,13 +170,28 @@ class NoticeRow extends StatelessWidget {
               Wrap(
                 spacing: 9,
                 children: [
-                  Text(notice.statusLabel, style: meta),
+                  Text(context.tr(notice.statusLabel), style: meta),
                   if (notice.targetNames.isNotEmpty)
-                    Text('目标设备 · ${notice.targetNames.join('、')}', style: meta),
+                    Text(
+                      context.tr('目标设备 · {0}', [
+                        notice.targetNames.join(
+                          context.appLanguage == AppLanguage.english
+                              ? ', '
+                              : '、',
+                        ),
+                      ]),
+                      style: meta,
+                    ),
                   if (notice.files.isNotEmpty)
-                    Text('${notice.files.length} 个附件', style: meta),
+                    Text(
+                      context.tr('{0} 个附件', [notice.files.length]),
+                      style: meta,
+                    ),
                   if (next)
-                    Text('下一项', style: meta.copyWith(color: colors.primary)),
+                    Text(
+                      context.tr('下一项'),
+                      style: meta.copyWith(color: colors.primary),
+                    ),
                 ],
               ),
             ],
@@ -204,7 +223,7 @@ class _NoticeDetailsState extends State<_NoticeDetails> {
       await widget.inbox.markRead(widget.notice);
       if (mounted && readError != null) setState(() => readError = null);
     } catch (e) {
-      if (mounted) setState(() => readError = '未能标记已读：$e');
+      if (mounted) setState(() => readError = context.tr('未能标记已读：{0}', [e]));
     }
   }
 
@@ -215,13 +234,13 @@ class _NoticeDetailsState extends State<_NoticeDetails> {
       if (mounted && saved) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('附件已保存')));
+        ).showSnackBar(SnackBar(content: Text(context.tr('附件已保存'))));
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(SnackBar(content: Text('保存失败：$e')));
+        ).showSnackBar(SnackBar(content: Text(context.tr('保存失败：{0}', [e]))));
       }
     } finally {
       if (mounted) setState(() => saving = null);
@@ -259,11 +278,22 @@ class _NoticeDetailsState extends State<_NoticeDetails> {
               ),
               const SizedBox(height: 8),
               Text(
-                '通知时间 · ${local.year}年${local.month}月${local.day}日 $time　${notice.statusLabel}',
+                context.tr('通知时间 · {0} {1}　{2}', [
+                  context.appLanguage.date(local),
+                  time,
+                  context.tr(notice.statusLabel),
+                ]),
                 style: meta,
               ),
               if (notice.targetNames.isNotEmpty)
-                Text('目标设备 · ${notice.targetNames.join('、')}', style: meta),
+                Text(
+                  context.tr('目标设备 · {0}', [
+                    notice.targetNames.join(
+                      context.appLanguage == AppLanguage.english ? ', ' : '、',
+                    ),
+                  ]),
+                  style: meta,
+                ),
               if (notice.body.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 const Divider(),
@@ -275,7 +305,7 @@ class _NoticeDetailsState extends State<_NoticeDetails> {
               ],
               if (notice.files.isNotEmpty) ...[
                 const SizedBox(height: 20),
-                Text('附件', style: meta),
+                Text(context.tr('附件'), style: meta),
                 for (final file in notice.files)
                   ListTile(
                     contentPadding: EdgeInsets.zero,

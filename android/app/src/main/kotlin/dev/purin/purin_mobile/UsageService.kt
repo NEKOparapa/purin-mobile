@@ -57,17 +57,18 @@ class UsageService : Service() {
         val withUsage = signals.usageAllowed()
         if (!withLocation && !withUsage) return false
         val manager = getSystemService(NotificationManager::class.java)
+        val strings = purinStrings()
         val channel = "usage_timeline"
         if (Build.VERSION.SDK_INT >= 26) {
-            manager.createNotificationChannel(NotificationChannel(channel, "移动端信息采集", NotificationManager.IMPORTANCE_LOW))
+            manager.createNotificationChannel(NotificationChannel(channel, strings.getString(R.string.activity_collection), NotificationManager.IMPORTANCE_LOW))
         }
         val open = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java)
             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
         val notification = NotificationCompat.Builder(this, channel)
             .setSmallIcon(R.drawable.ic_stat_purin)
             .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
-            .setContentTitle(if (withLocation) "正在定时采集位置" else "正在记录前台应用活动")
-            .setContentText("可在「信息采集」中调整或关闭。")
+            .setContentTitle(strings.getString(if (withLocation) R.string.recording_location else R.string.recording_app_activity))
+            .setContentText(strings.getString(R.string.collection_settings))
             .setContentIntent(open).setOngoing(true).setOnlyAlertOnce(true).build()
         if (Build.VERSION.SDK_INT >= 29) {
             var types = if (withLocation) ServiceInfo.FOREGROUND_SERVICE_TYPE_LOCATION else 0

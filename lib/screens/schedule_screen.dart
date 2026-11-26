@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../l10n/app_language.dart';
 import '../data/agent_api.dart';
 import '../data/device_inbox.dart';
 import '../data/schedule.dart';
@@ -260,12 +261,12 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                 loaded: loaded,
                 nextId: nextUpcoming?.notification?.id,
                 emptyText: !connected
-                    ? '连接后可查看当日通知'
+                    ? context.tr('连接后可查看当日通知')
                     : loaded
-                    ? '当日没有通知'
+                    ? context.tr('当日没有通知')
                     : _error == null
-                    ? '正在读取通知…'
-                    : '尚未获取当日通知',
+                    ? context.tr('正在读取通知…')
+                    : context.tr('尚未获取当日通知'),
               ),
             );
           }
@@ -292,15 +293,15 @@ class _ScheduleScreenState extends State<ScheduleScreen>
               ),
               const SizedBox(height: 22),
               if (!connected) ...[
-                const _SectionHeading(title: '当日安排'),
+                _SectionHeading(title: context.tr('当日安排')),
                 Wrap(
                   spacing: 6,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: [
-                    Text('连接后可查看主 Agent 的安排。', style: muted),
+                    Text(context.tr('连接后可查看主 Agent 的安排。'), style: muted),
                     TextButton(
                       onPressed: widget.onSettings,
-                      child: const Text('打开连接设置'),
+                      child: Text(context.tr('打开连接设置')),
                     ),
                   ],
                 ),
@@ -311,18 +312,22 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                     spacing: 6,
                     children: [
                       Text(
-                        _error! + (loaded ? ' 当前显示上次读取的安排。' : ''),
+                        context.tr(_error!) +
+                            (loaded ? context.tr(' 当前显示上次读取的安排。') : ''),
                         style: TextStyle(color: colors.error),
                       ),
-                      TextButton(onPressed: _refresh, child: const Text('重试')),
+                      TextButton(
+                        onPressed: _refresh,
+                        child: Text(context.tr('重试')),
+                      ),
                     ],
                   ),
                 _SectionHeading(
-                  title: '当日安排',
+                  title: context.tr('当日安排'),
                   count: loaded ? agenda.length : null,
                   action: showFilters
                       ? PopupMenuButton<_AgendaFilter>(
-                          tooltip: '筛选当日安排',
+                          tooltip: context.tr('筛选当日安排'),
                           initialValue: activeFilter,
                           onSelected: (value) =>
                               setState(() => _filter = value),
@@ -330,7 +335,7 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                             for (final value in _AgendaFilter.values)
                               PopupMenuItem(
                                 value: value,
-                                child: Text(value.label),
+                                child: Text(context.tr(value.label)),
                               ),
                           ],
                           child: Padding(
@@ -338,7 +343,10 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Text(activeFilter.label, style: muted),
+                                Text(
+                                  context.tr(activeFilter.label),
+                                  style: muted,
+                                ),
                                 Icon(
                                   Icons.expand_more,
                                   size: 16,
@@ -359,17 +367,20 @@ class _ScheduleScreenState extends State<ScheduleScreen>
                       children: [
                         Text(
                           loaded
-                              ? '当天没有安排'
+                              ? context.tr('当天没有安排')
                               : _error == null
-                              ? '正在读取安排…'
-                              : '尚未获取当天安排',
+                              ? context.tr('正在读取安排…')
+                              : context.tr('尚未获取当天安排'),
                           style: muted,
                         ),
                         if (nearest != null)
                           TextButton(
                             onPressed: () => _select(nearest),
                             child: Text(
-                              '查看 ${nearest.month}/${nearest.day} 日程',
+                              context.tr('查看 {0}/{1} 日程', [
+                                nearest.month,
+                                nearest.day,
+                              ]),
                             ),
                           ),
                       ],
@@ -403,13 +414,15 @@ class _SectionHeading extends StatelessWidget {
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Semantics(
-                  header: true,
-                  child: Text(
-                    title,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
+                Flexible(
+                  child: Semantics(
+                    header: true,
+                    child: Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ),
                 ),
@@ -449,8 +462,8 @@ class _AgendaRow extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final meta = TextStyle(color: colors.onSurfaceVariant, fontSize: 12);
     final action = switch (entry.action) {
-      'notify_agent' => '通知主 Agent',
-      'notify_device' => '发送设备通知',
+      'notify_agent' => context.tr('通知主 Agent'),
+      'notify_device' => context.tr('发送设备通知'),
       _ => entry.action,
     };
     return Column(
@@ -484,10 +497,16 @@ class _AgendaRow extends StatelessWidget {
               Wrap(
                 spacing: 9,
                 children: [
-                  Text(entry.triggered ? '已触发' : '待触发', style: meta),
+                  Text(
+                    entry.triggered ? context.tr('已触发') : context.tr('待触发'),
+                    style: meta,
+                  ),
                   Text(action, style: meta),
                   if (next)
-                    Text('下一项', style: meta.copyWith(color: colors.primary)),
+                    Text(
+                      context.tr('下一项'),
+                      style: meta.copyWith(color: colors.primary),
+                    ),
                 ],
               ),
             ],
@@ -544,7 +563,7 @@ class _DayNoticesState extends State<_DayNotices> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _SectionHeading(
-              title: '当日通知',
+              title: context.tr('当日通知'),
               count: widget.loaded ? widget.notices.length : null,
               action: widget.notices.length > 3
                   ? TextButton(
@@ -553,7 +572,9 @@ class _DayNoticesState extends State<_DayNotices> {
                         foregroundColor: colors.onSurfaceVariant,
                       ),
                       child: Text(
-                        _showAll ? '收起' : '显示全部 ${widget.notices.length} 条',
+                        _showAll
+                            ? context.tr('收起')
+                            : context.tr('显示全部 {0} 条', [widget.notices.length]),
                       ),
                     )
                   : null,
@@ -563,7 +584,7 @@ class _DayNoticesState extends State<_DayNotices> {
                 alignment: Alignment.centerLeft,
                 child: TextButton(
                   onPressed: _requesting ? null : _requestPermission,
-                  child: const Text('获取通知权限'),
+                  child: Text(context.tr('获取通知权限')),
                 ),
               ),
             if (shown.isEmpty)

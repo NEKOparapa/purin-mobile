@@ -5,6 +5,7 @@ import 'package:purin_mobile/data/mobile_connectors.dart';
 import 'package:purin_mobile/data/mobile_session.dart';
 import 'package:purin_mobile/data/mobile_store.dart';
 import 'package:purin_mobile/data/mobile_terminal_tools.dart';
+import 'package:purin_mobile/l10n/app_language.dart';
 import 'package:purin_mobile/screens/mobile_connectors_screen.dart';
 import 'package:purin_mobile/widgets/app_theme.dart';
 
@@ -26,6 +27,14 @@ class _Connectors extends MobileConnectors {
 }
 
 class _MemoryStore implements MobileStore {
+  AppLanguage language = AppLanguage.chinese;
+
+  @override
+  Future<AppLanguage> readLanguage() async => language;
+
+  @override
+  Future<void> saveLanguage(AppLanguage value) async => language = value;
+
   final scopes = <String, Json>{};
   Connection? savedConnection;
 

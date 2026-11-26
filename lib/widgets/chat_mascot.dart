@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import '../l10n/app_language.dart';
 
 class ChatMascot extends StatefulWidget {
   const ChatMascot({
@@ -95,7 +96,7 @@ class _ChatMascotState extends State<ChatMascot> {
     final colors = Theme.of(context).colorScheme;
     return Semantics(
       button: true,
-      label: '收起助手到顶部胶囊',
+      label: context.tr('收起助手到顶部胶囊'),
       child: InkWell(
         borderRadius: BorderRadius.circular(20),
         onTap: widget.onFold,

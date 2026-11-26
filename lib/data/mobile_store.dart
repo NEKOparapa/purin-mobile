@@ -4,9 +4,12 @@ import 'package:flutter/material.dart' show ThemeMode;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:path_provider/path_provider.dart';
 import 'agent_api.dart';
+import '../l10n/app_language.dart';
 
 abstract interface class MobileStore {
   Future<String> installationId();
+  Future<AppLanguage> readLanguage();
+  Future<void> saveLanguage(AppLanguage language);
   Future<ThemeMode> readTheme();
   Future<void> saveTheme(ThemeMode mode);
   Future<Connection?> connection();
@@ -27,24 +30,38 @@ class DeviceStore implements MobileStore {
     return id;
   }
 
-  Future<File> get _themeFile async =>
-      File('${(await getApplicationSupportDirectory()).path}/appearance');
+  Future<File> _preferenceFile(String name) async =>
+      File('${(await getApplicationSupportDirectory()).path}/$name');
 
-  @override
-  Future<ThemeMode> readTheme() async {
-    final file = await _themeFile;
-    if (!await file.exists()) return ThemeMode.light;
-    final name = (await file.readAsString()).trim();
-    return name == ThemeMode.dark.name ? ThemeMode.dark : ThemeMode.light;
+  Future<String?> _readPreference(String name) async {
+    final file = await _preferenceFile(name);
+    return await file.exists() ? (await file.readAsString()).trim() : null;
   }
 
-  @override
-  Future<void> saveTheme(ThemeMode mode) async {
-    final file = await _themeFile;
+  Future<void> _savePreference(String name, String value) async {
+    final file = await _preferenceFile(name);
     final temp = File('${file.path}.tmp');
-    await temp.writeAsString(mode.name, flush: true);
+    await temp.writeAsString(value, flush: true);
     await temp.rename(file.path);
   }
+
+  @override
+  Future<ThemeMode> readTheme() async =>
+      await _readPreference('appearance') == ThemeMode.dark.name
+      ? ThemeMode.dark
+      : ThemeMode.light;
+
+  @override
+  Future<void> saveTheme(ThemeMode mode) =>
+      _savePreference('appearance', mode.name);
+
+  @override
+  Future<AppLanguage> readLanguage() async =>
+      AppLanguage.fromTag(await _readPreference('language'));
+
+  @override
+  Future<void> saveLanguage(AppLanguage language) =>
+      _savePreference('language', language.locale.toLanguageTag());
 
   @override
   Future<Connection?> connection() async {

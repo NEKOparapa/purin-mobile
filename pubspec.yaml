@@ -11,6 +11,9 @@ dependencies:
   file_selector_ios: ^0.5.3+6
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: any
   flutter_secure_storage: ^11.2.0
   image: ^4.13.1
   mobile_scanner: ^7.5.0

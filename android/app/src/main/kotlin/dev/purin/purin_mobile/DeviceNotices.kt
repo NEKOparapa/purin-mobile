@@ -33,10 +33,11 @@ internal object DeviceNotices {
     fun enabled(context: Context): Boolean {
         val manager = context.getSystemService(NotificationManager::class.java)
         if (Build.VERSION.SDK_INT >= 26) {
+            val strings = context.purinStrings()
             manager.createNotificationChannel(
                 NotificationChannel(
                     USER_CHANNEL,
-                    "Agent 消息提醒",
+                    strings.getString(R.string.agent_reminders),
                     NotificationManager.IMPORTANCE_HIGH,
                 )
             )

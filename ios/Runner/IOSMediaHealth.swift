@@ -100,24 +100,28 @@ extension IOSConnectorHost {
       cursor = max(cursor, finish)
     }
     var data: ToolData = ["day_start_ms": day.connectorMillis, "timezone": calendar.timeZone.identifier]
-    var lines = [DateFormatter.localizedString(from: day, dateStyle: .medium, timeStyle: .none)]
-    if let steps = steps { data["steps"] = steps; lines.append("步数：\(steps)") }
+    let english = PurinLanguage.isEnglish
+    let formatter = DateFormatter()
+    formatter.locale = Locale(identifier: english ? "en" : "zh_CN")
+    formatter.dateStyle = .medium
+    var lines = [formatter.string(from: day)]
+    if let steps = steps { data["steps"] = steps; lines.append(english ? "Steps: \(steps)" : "步数：\(steps)") }
     if sleeping > 0 {
       let minutes = Int(sleeping / 60)
       data["sleep_minutes"] = minutes
-      lines.append("当日睡眠：\(minutes) 分钟")
+      lines.append(english ? "Sleep: \(minutes) minutes" : "当日睡眠：\(minutes) 分钟")
     }
     if !workouts.isEmpty {
       let minutes = Int(workouts.reduce(0.0) { $0 + $1.duration } / 60)
       data["workouts"] = workouts.count
       data["workout_minutes"] = minutes
-      lines.append("当日开始的锻炼：\(workouts.count) 次，共 \(minutes) 分钟")
+      lines.append(english ? "Workouts started that day: \(workouts.count), totaling \(minutes) minutes" : "当日开始的锻炼：\(workouts.count) 次，共 \(minutes) 分钟")
     }
-    if lines.count == 1 { data["status"] = "no_visible_data"; lines.append("没有可读取的记录") }
+    if lines.count == 1 { data["status"] = "no_visible_data"; lines.append(english ? "No records available" : "没有可读取的记录") }
     let host = try request.presenter()
     let approved = await withCheckedContinuation { (continuation: CheckedContinuation<Bool, Never>) in
-      let alert = UIAlertController(title: "分享这一天的健康摘要？",
-        message: lines.joined(separator: "\n") + "\n\n接收服务：\(request.server)\n仅在你使用该服务进行健康或健身分析时分享。摘要将保存到发起调用的会话。",
+      let alert = UIAlertController(title: english ? "Share the health summary for this day?" : "分享这一天的健康摘要？",
+        message: lines.joined(separator: "\n") + (english ? "\n\nReceiving service: \(request.server)\nShare only if you use this service for health or fitness analysis. The summary will be saved to the conversation that requested it." : "\n\n接收服务：\(request.server)\n仅在你使用该服务进行健康或健身分析时分享。摘要将保存到发起调用的会话。"),
         preferredStyle: .alert)
       var waiting = true
       func finish(_ allow: Bool) {
@@ -125,8 +129,8 @@ extension IOSConnectorHost {
         waiting = false
         continuation.resume(returning: allow)
       }
-      alert.addAction(UIAlertAction(title: "不分享", style: .cancel) { _ in finish(false) })
-      alert.addAction(UIAlertAction(title: "分享摘要", style: .default) { _ in finish(true) })
+      alert.addAction(UIAlertAction(title: english ? "Don’t share" : "不分享", style: .cancel) { _ in finish(false) })
+      alert.addAction(UIAlertAction(title: english ? "Share summary" : "分享摘要", style: .default) { _ in finish(true) })
       host.present(alert, animated: true)
       DispatchQueue.main.asyncAfter(deadline: .now() + max(0.1, request.deadline - ProcessInfo.processInfo.systemUptime - 0.2)) {
         if waiting { alert.dismiss(animated: false); finish(false) }

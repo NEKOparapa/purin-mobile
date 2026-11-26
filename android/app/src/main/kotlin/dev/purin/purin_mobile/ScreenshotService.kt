@@ -197,17 +197,18 @@ class ScreenshotService : Service() {
 
     @Suppress("DEPRECATION")
     private fun notification(): Notification {
+        val strings = purinStrings()
         val mgr = getSystemService(NotificationManager::class.java)
         val builder = if (Build.VERSION.SDK_INT >= 26) {
-            mgr.createNotificationChannel(NotificationChannel("screenshots", "定时截图", NotificationManager.IMPORTANCE_LOW))
+            mgr.createNotificationChannel(NotificationChannel("screenshots", strings.getString(R.string.periodic_screenshots), NotificationManager.IMPORTANCE_LOW))
             Notification.Builder(this, "screenshots")
         } else Notification.Builder(this)
         val stop = PendingIntent.getService(this, 1, Intent(this, ScreenshotService::class.java).setAction(STOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         return builder.setSmallIcon(R.drawable.ic_stat_purin)
             .setLargeIcon(BitmapFactory.decodeResource(resources, R.mipmap.ic_launcher))
-            .setContentTitle("Purin 正在采集前台应用截图").setContentText("同一应用连续停留 10 分钟后截取一次")
-            .setOngoing(true).addAction(android.R.drawable.ic_menu_close_clear_cancel, "停止共享", stop).build()
+            .setContentTitle(strings.getString(R.string.capturing_foreground)).setContentText(strings.getString(R.string.screenshot_timing))
+            .setOngoing(true).addAction(android.R.drawable.ic_menu_close_clear_cancel, strings.getString(R.string.stop_sharing), stop).build()
     }
 
     private fun releaseSurface() {

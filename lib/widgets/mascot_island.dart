@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import '../l10n/app_language.dart';
 import '../data/island_activity.dart';
 import '../data/mobile_session.dart';
 import '../data/schedule.dart';
@@ -54,6 +55,7 @@ class _MascotIslandState extends State<MascotIsland>
       IslandActivity.foldAndroid(
         widget.islandId,
         widget.session.connection != null,
+        widget.session.language.value,
       ).then((result) {
         if (mounted) widget.onSystemFold?.call(result);
       });
@@ -120,7 +122,7 @@ class _MascotIslandState extends State<MascotIsland>
       _live.today(entries, day);
     } catch (_) {
       if (current()) {
-        setState(() => _error = '今日内容暂时无法读取');
+        setState(() => _error = context.tr('今日内容暂时无法读取'));
         _live.todayUnavailable();
       }
     } finally {
@@ -214,7 +216,9 @@ class _MascotIslandState extends State<MascotIsland>
                 final (icon, status) = _status();
                 return Semantics(
                   button: true,
-                  label: _expanded ? '返回对话' : '展开今日通知与安排，$status',
+                  label: _expanded
+                      ? context.tr('返回对话')
+                      : context.tr('展开今日通知与安排，{0}', [context.tr(status)]),
                   child: Material(
                     color: const Color(0xF218212E),
                     shape: RoundedRectangleBorder(
@@ -283,12 +287,12 @@ class _MascotIslandState extends State<MascotIsland>
   Widget _summary() {
     final entries = _entries;
     final message = widget.session.connection == null
-        ? '连接后可查看今天的内容'
+        ? context.tr('连接后可查看今天的内容')
         : _error ??
               (entries == null
-                  ? '正在读取…'
+                  ? context.tr('正在读取…')
                   : entries.isEmpty
-                  ? '今天没有通知或安排'
+                  ? context.tr('今天没有通知或安排')
                   : null);
     return DefaultTextStyle(
       style: const TextStyle(color: Color(0xfff4f4f6), fontSize: 14),
@@ -297,8 +301,8 @@ class _MascotIslandState extends State<MascotIsland>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              '今日通知与安排',
+            Text(
+              context.tr('今日通知与安排'),
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
             ),
             const SizedBox(height: 8),
@@ -306,8 +310,8 @@ class _MascotIslandState extends State<MascotIsland>
             if (_error != null)
               TextButton(
                 onPressed: _readToday,
-                child: const Text(
-                  '重新读取',
+                child: Text(
+                  context.tr('重新读取'),
                   style: TextStyle(color: Colors.white),
                 ),
               ),
@@ -321,7 +325,9 @@ class _MascotIslandState extends State<MascotIsland>
                       entry.notification == null
                           ? Icons.event_outlined
                           : Icons.notifications_none_rounded,
-                      semanticLabel: entry.notification == null ? '安排' : '通知',
+                      semanticLabel: entry.notification == null
+                          ? context.tr('安排')
+                          : context.tr('通知'),
                       size: 16,
                       color: const Color(0xFF92C8FF),
                     ),

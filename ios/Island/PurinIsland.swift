@@ -14,10 +14,13 @@ private func symbol(_ context: Context) -> String {
 }
 
 private func status(_ context: Context) -> String {
+  let english = context.state.language == "en"
   switch context.state.phase {
-  case "reply": return "收到新回复"
-  case "ended": return "处理已结束"
-  default: return context.isStale ? "打开对话同步进度" : "正在回复"
+  case "reply": return english ? "New reply" : "收到新回复"
+  case "ended": return english ? "Finished" : "处理已结束"
+  default:
+    if context.isStale { return english ? "Open chat to sync progress" : "打开对话同步进度" }
+    return english ? "Replying" : "正在回复"
   }
 }
 
@@ -32,11 +35,11 @@ private struct TodaySummary: View {
   let context: Context
   var body: some View {
     VStack(alignment: .leading, spacing: 3) {
-      Text("今日通知与安排").font(.caption.bold())
+      Text(context.state.language == "en" ? "Today’s notifications and events" : "今日通知与安排").font(.caption.bold())
       if let end = context.state.dayEnd, end > Date(), !context.state.lines.isEmpty {
         ForEach(context.state.lines, id: \.self) { Text($0).font(.caption).lineLimit(1).privacySensitive() }
       } else {
-        Text("打开应用查看今天的内容").font(.caption)
+        Text(context.state.language == "en" ? "Open the app to see today’s items" : "打开应用查看今天的内容").font(.caption)
       }
     }
     .frame(maxWidth: .infinity, alignment: .leading)

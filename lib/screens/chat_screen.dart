@@ -1,8 +1,10 @@
+import 'package:intl/intl.dart';
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform;
 import 'package:flutter/material.dart';
+import '../l10n/app_language.dart';
 import '../data/agent_api.dart';
 import '../data/device_inbox.dart';
 import '../data/island_activity.dart';
@@ -101,9 +103,9 @@ class _ChatScreenState extends State<ChatScreen> {
     }
     _openSchedule(islandId: id);
     final message = switch (result) {
-      'disabled' => '通知权限或助手胶囊通知已关闭，当前在应用内显示',
-      'notPromoted' => '系统未显示实时胶囊，当前在应用内显示',
-      'unavailable' => '系统胶囊暂时不可用，当前在应用内显示',
+      'disabled' => context.tr('通知权限或助手胶囊通知已关闭，当前在应用内显示'),
+      'notPromoted' => context.tr('系统未显示实时胶囊，当前在应用内显示'),
+      'unavailable' => context.tr('系统胶囊暂时不可用，当前在应用内显示'),
       _ => null,
     };
     if (message != null) {
@@ -206,7 +208,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         TextButton.icon(
                           onPressed: () => Navigator.pop(context),
                           icon: const Icon(Icons.chevron_left_rounded),
-                          label: const Text('对话'),
+                          label: Text(context.tr('对话')),
                         ),
                         _settingsButton(),
                       ],
@@ -252,7 +254,7 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Widget _settingsButton() => IconButton(
-    tooltip: '设置',
+    tooltip: context.tr('设置'),
     icon: const Icon(Icons.settings_outlined),
     iconSize: 22,
     constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
@@ -527,14 +529,14 @@ class _ChatScreenState extends State<ChatScreen> {
             spacing: 8,
             children: [
               _TopicButton(
-                label: '聊聊今天',
+                label: context.tr('聊聊今天'),
                 icon: Icons.wb_sunny_outlined,
-                onTap: () => _fillPrompt('我想跟你聊聊今天发生的事。'),
+                onTap: () => _fillPrompt(context.tr('我想跟你聊聊今天发生的事。')),
               ),
               _TopicButton(
-                label: '想想晚饭',
+                label: context.tr('想想晚饭'),
                 icon: Icons.rice_bowl_outlined,
-                onTap: () => _fillPrompt('今晚吃点什么好呢？'),
+                onTap: () => _fillPrompt(context.tr('今晚吃点什么好呢？')),
               ),
             ],
           ),
@@ -581,7 +583,7 @@ class _ChatScreenState extends State<ChatScreen> {
           }
           final entry = messages[index];
           final prev = index > 0 ? messages[index - 1] : null;
-          final stamp = _timestampHeader(entry, prev);
+          final stamp = _timestampHeader(context, entry, prev);
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -606,7 +608,7 @@ DateTime? _parseOccurredAt(Json entry) {
   return DateTime.tryParse(raw)?.toLocal();
 }
 
-String? _timestampHeader(Json current, Json? previous) {
+String? _timestampHeader(BuildContext context, Json current, Json? previous) {
   final cur = _parseOccurredAt(current);
   if (cur == null) return null;
   if (previous != null) {
@@ -622,7 +624,13 @@ String? _timestampHeader(Json current, Json? previous) {
   final hh = cur.hour.toString().padLeft(2, '0');
   final mm = cur.minute.toString().padLeft(2, '0');
   if (diffDays == 0) return '$hh:$mm';
-  if (diffDays == 1) return '昨天 $hh:$mm';
+  if (diffDays == 1) return context.tr('昨天 {0}:{1}', [hh, mm]);
+  if (context.appLanguage == AppLanguage.english) {
+    final date = cur.year == now.year
+        ? DateFormat.MMMd('en')
+        : DateFormat.yMMMd('en');
+    return '${date.format(cur)} $hh:$mm';
+  }
   if (cur.year == now.year) return '${cur.month}月${cur.day}日 $hh:$mm';
   return '${cur.year}年${cur.month}月${cur.day}日 $hh:$mm';
 }
@@ -630,12 +638,12 @@ String? _timestampHeader(Json current, Json? previous) {
 class _Greeting extends StatelessWidget {
   const _Greeting();
   @override
-  Widget build(BuildContext context) => const FittedBox(
+  Widget build(BuildContext context) => FittedBox(
     fit: BoxFit.scaleDown,
     child: Padding(
       padding: EdgeInsets.fromLTRB(16, 0, 16, 20),
       child: Text(
-        '今天过得怎么样？',
+        context.tr('今天过得怎么样？'),
         style: TextStyle(
           fontSize: 26,
           fontWeight: FontWeight.w600,
@@ -768,7 +776,12 @@ class _CalendarEntryState extends State<_CalendarEntry>
               ),
             ),
             const SizedBox(width: 7),
-            Text('日程', semanticsLabel: widget.unread ? '日程，有未读通知' : '日程'),
+            Text(
+              context.tr('日程'),
+              semanticsLabel: widget.unread
+                  ? context.tr('日程，有未读通知')
+                  : context.tr('日程'),
+            ),
             if (widget.unread) ...[
               const SizedBox(width: 4),
               ExcludeSemantics(child: Badge(backgroundColor: colors.primary)),
@@ -813,7 +826,7 @@ class _FloatingErrorPill extends StatelessWidget {
                 visualDensity: VisualDensity.compact,
                 padding: const EdgeInsets.symmetric(horizontal: 10),
               ),
-              child: const Text('重试'),
+              child: Text(context.tr('重试')),
             ),
         ],
       ),
@@ -864,14 +877,14 @@ class _Message extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final user = entry['role'] == 'user';
-    final status = const {
-      'sending': '正在发送',
-      'unsent': '未确认送达',
-      'queued': '已排队',
-      'running': '处理中',
-      'failed': '处理失败',
-      'interrupted': '已中断',
-      'missing': '任务不存在',
+    final status = {
+      'sending': context.tr('正在发送'),
+      'unsent': context.tr('未确认送达'),
+      'queued': context.tr('已排队'),
+      'running': context.tr('处理中'),
+      'failed': context.tr('处理失败'),
+      'interrupted': context.tr('已中断'),
+      'missing': context.tr('任务不存在'),
     }[entry['status']];
 
     final text = entry['text'] as String;
@@ -900,7 +913,7 @@ class _Message extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               Semantics(
-                label: user ? '你' : 'Purin',
+                label: user ? context.tr('你') : 'Purin',
                 child: ChatBubble(
                   fromUser: user,
                   child: Column(
@@ -973,7 +986,7 @@ class _Message extends StatelessWidget {
                         GestureDetector(
                           onTap: onRetry,
                           child: Text(
-                            '重试发送',
+                            context.tr('重试发送'),
                             style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
@@ -1061,7 +1074,7 @@ class _ChatImageState extends State<_ChatImage> {
           onPressed: () => setState(() {
             image = widget.api.chatImage(widget.connection, widget.id);
           }),
-          child: const Text('重新加载图片'),
+          child: Text(context.tr('重新加载图片')),
         );
       }
       if (!snapshot.hasData) {
@@ -1075,7 +1088,7 @@ class _ChatImageState extends State<_ChatImage> {
         snapshot.data!,
         height: 150,
         fit: BoxFit.contain,
-        semanticLabel: '聊天图片',
+        semanticLabel: context.tr('聊天图片'),
       );
     },
   );
