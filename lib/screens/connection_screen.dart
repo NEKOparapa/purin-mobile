@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'pairing_scanner.dart';
@@ -61,7 +62,7 @@ class ConnectionScreen extends StatelessWidget {
                   padding: const EdgeInsets.fromLTRB(16, 10, 16, 40),
                   children: [
                     SettingsSection(
-                      title: '能力与连接',
+                      title: '设备与采集',
                       children: [
                         SettingsTile(
                           leading: _CategoryIcon(
@@ -76,6 +77,25 @@ class ConnectionScreen extends StatelessWidget {
                             _ConnectionDetailScreen(session: session),
                           ),
                         ),
+                        SettingsTile(
+                          leading: const _CategoryIcon(
+                            icon: Icons.sensors_rounded,
+                          ),
+                          title: '信息采集',
+                          subtitle: _collectionSummary(session),
+                          showChevron: true,
+                          onTap: () => _push(
+                            context,
+                            _CollectionSettingsScreen(session: session),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    SettingsSection(
+                      title: '能力扩展',
+                      children: [
                         SettingsTile(
                           leading: const _CategoryIcon(
                             icon: Icons.extension_outlined,
@@ -101,9 +121,9 @@ class ConnectionScreen extends StatelessWidget {
                           valueListenable: session.themeMode,
                           builder: (context, mode, _) => SettingsTile(
                             leading: const _CategoryIcon(
-                              icon: Icons.palette_outlined,
+                              icon: Icons.settings_outlined,
                             ),
-                            title: '外观',
+                            title: '应用设置',
                             subtitle: '切换浅色或深色界面主题',
                             trailing: Text(
                               _themeLabel(mode),
@@ -135,25 +155,6 @@ class ConnectionScreen extends StatelessWidget {
                               }
                             },
                           ),
-                      ],
-                    ),
-                    const SizedBox(height: 24),
-
-                    SettingsSection(
-                      title: '设备与采集',
-                      children: [
-                        SettingsTile(
-                          leading: const _CategoryIcon(
-                            icon: Icons.sensors_rounded,
-                          ),
-                          title: '信息采集',
-                          subtitle: _collectionSummary(session),
-                          showChevron: true,
-                          onTap: () => _push(
-                            context,
-                            _CollectionSettingsScreen(session: session),
-                          ),
-                        ),
                       ],
                     ),
                   ],
@@ -655,6 +656,14 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
                           ),
                         ),
                       ),
+                    if (!showForm) ...[
+                      const SizedBox(height: 24),
+                      _OnlineDevicesSection(
+                        key: ValueKey(conn.scope),
+                        session: session,
+                        connection: conn,
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -662,6 +671,312 @@ class _ConnectionDetailScreenState extends State<_ConnectionDetailScreen> {
           ),
         );
       },
+    );
+  }
+}
+
+class _OnlineDevicesSection extends StatefulWidget {
+  const _OnlineDevicesSection({
+    super.key,
+    required this.session,
+    required this.connection,
+  });
+
+  final MobileSession session;
+  final Connection connection;
+
+  @override
+  State<_OnlineDevicesSection> createState() => _OnlineDevicesSectionState();
+}
+
+class _OnlineDevicesSectionState extends State<_OnlineDevicesSection> {
+  List<OnlineDevice> _devices = const [];
+  bool _loading = true;
+  bool _refreshing = false;
+  String? _error;
+  Timer? _timer;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_load(initial: true));
+    _timer = Timer.periodic(const Duration(seconds: 8), (_) => _load());
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _load({bool initial = false, bool manual = false}) async {
+    if (_refreshing) return;
+    if (manual && mounted) {
+      setState(() {
+        _refreshing = true;
+        _error = null;
+      });
+    } else if (initial) {
+      _refreshing = true;
+    } else {
+      _refreshing = true;
+    }
+    try {
+      final items = await widget.session.api.onlineDevices(widget.connection);
+      if (!mounted) return;
+      setState(() {
+        _devices = items;
+        _error = null;
+        _loading = false;
+        _refreshing = false;
+      });
+    } on ApiError catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.status == 404 ? '后端尚未支持在线设备查询' : '读取在线设备信息失败，请稍后重试';
+        _loading = false;
+        _refreshing = false;
+      });
+    } on Exception {
+      if (!mounted) return;
+      setState(() {
+        _error = '读取在线设备信息失败，请检查网络连接';
+        _loading = false;
+        _refreshing = false;
+      });
+    }
+  }
+
+  IconData _iconFor(OnlineDevice item) => switch (item.resolvedKind) {
+    'mobile' => Icons.smartphone_rounded,
+    'esp32' => Icons.memory_rounded,
+    'desktop' =>
+      item.platform == 'macos'
+          ? Icons.laptop_mac_rounded
+          : Icons.desktop_windows_rounded,
+    _ => Icons.dns_outlined,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    final atmo = AppAtmosphere.of(context);
+    final onlineTone = Theme.of(context).brightness == Brightness.dark
+        ? const Color(0xFF45D4A6)
+        : const Color(0xFF16855E);
+    final title = !_loading && _error == null
+        ? '在线设备 · ${_devices.length}'
+        : '在线设备';
+
+    Widget content;
+    if (_loading) {
+      content = Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 18),
+        child: Row(
+          children: [
+            const CupertinoActivityIndicator(radius: 8.5),
+            const SizedBox(width: 10),
+            Text(
+              '正在获取在线设备信息…',
+              style: TextStyle(fontSize: 14, color: colors.onSurfaceVariant),
+            ),
+          ],
+        ),
+      );
+    } else if (_error != null) {
+      content = Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Text(
+          _error!,
+          style: TextStyle(fontSize: 14, color: colors.error),
+        ),
+      );
+    } else if (_devices.isEmpty) {
+      content = Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+        child: Text(
+          '当前暂无在线设备',
+          style: TextStyle(fontSize: 14, color: colors.onSurfaceVariant),
+        ),
+      );
+    } else {
+      final rows = <Widget>[];
+      for (var i = 0; i < _devices.length; i++) {
+        final item = _devices[i];
+        rows.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+            child: Row(
+              children: [
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: item.isCurrent
+                        ? colors.primary.withValues(alpha: 0.14)
+                        : atmo.inputFill,
+                    borderRadius: BorderRadius.circular(11),
+                  ),
+                  child: Icon(
+                    _iconFor(item),
+                    size: 18,
+                    color: item.isCurrent
+                        ? colors.primary
+                        : colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              item.name,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: 15.5,
+                                fontWeight: FontWeight.w600,
+                                color: colors.onSurface,
+                              ),
+                            ),
+                          ),
+                          if (item.isCurrent) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colors.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(99),
+                              ),
+                              child: Text(
+                                '本机',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: colors.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${item.platformLabel} · ${item.deviceId}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12.5,
+                          color: colors.onSurfaceVariant,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 9,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: onlineTone.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(99),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: BoxDecoration(
+                          color: onlineTone,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 5),
+                      Text(
+                        '在线',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: onlineTone,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+        if (i < _devices.length - 1) {
+          rows.add(
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Divider(height: 0.9, thickness: 0.9, color: atmo.hairline),
+            ),
+          );
+        }
+      }
+      content = Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: rows,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 0, 12, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w500,
+                    color: atmo.sectionHeader,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+              ),
+              SizedBox(
+                width: 30,
+                height: 30,
+                child: IconButton(
+                  padding: EdgeInsets.zero,
+                  tooltip: '刷新在线设备',
+                  onPressed: _loading || _refreshing
+                      ? null
+                      : () => _load(manual: true),
+                  icon: _refreshing && !_loading
+                      ? const CupertinoActivityIndicator(radius: 7.5)
+                      : Icon(
+                          Icons.refresh_rounded,
+                          size: 18,
+                          color: atmo.sectionHeader,
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        GlassCard(
+          radius: 26,
+          padding: const EdgeInsets.symmetric(vertical: 6),
+          child: content,
+        ),
+      ],
     );
   }
 }
@@ -835,7 +1150,7 @@ class _AppearanceSettingsScreenState extends State<_AppearanceSettingsScreen> {
     final colors = Theme.of(context).colorScheme;
     final textScale = MediaQuery.textScalerOf(context).scale(1);
     return AtmosphereScaffold(
-      title: '外观',
+      title: '应用设置',
       body: SafeArea(
         top: false,
         child: Center(
@@ -1268,7 +1583,7 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                       const SizedBox(height: 18),
                     ],
                     SettingsSection(
-                      title: '应用与地点',
+                      title: session.screenshots.supported ? '应用与截图' : '应用活动',
                       children: [
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1330,68 +1645,7 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                               ),
                           ],
                         ),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            _SignalControl(
-                              title: '定时采集位置',
-                              description: '每 20 分钟采集位置和定位误差，由后端筛选并解析地点。',
-                              source: 'location',
-                              enabled: session.locationEnabled,
-                              access: session.locationAccess,
-                              lastObservation: session.lastLocationLabel,
-                              session: session,
-                            ),
-                            if (session.locationEnabled &&
-                                session.locationAccess == 'granted')
-                              Padding(
-                                padding: const EdgeInsets.fromLTRB(
-                                  20,
-                                  0,
-                                  20,
-                                  14,
-                                ),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      session.backgroundLocation
-                                          ? '后台定位已授权'
-                                          : '当前为使用期间定位',
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        color: colors.onSurfaceVariant,
-                                      ),
-                                    ),
-                                    if (!session.backgroundLocation)
-                                      _SubtleActionButton(
-                                        label: '允许后台定位',
-                                        onTap: () =>
-                                            session.requestSignalAccess(
-                                              'backgroundLocation',
-                                            ),
-                                      ),
-                                  ],
-                                ),
-                              ),
-                          ],
-                        ),
-                        SettingsSwitchTile(
-                          title: '定时采集网络',
-                          subtitle: '随位置记录 Wi-Fi 连接状态和名称。',
-                          value:
-                              session.locationEnabled && session.networkEnabled,
-                          onChanged: connected && session.locationEnabled
-                              ? session.setNetworkEnabled
-                              : null,
-                        ),
-                      ],
-                    ),
-                    if (session.screenshots.supported) ...[
-                      const SizedBox(height: 24),
-                      SettingsSection(
-                        title: '屏幕截图',
-                        children: [
+                        if (session.screenshots.supported)
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
@@ -1526,9 +1780,69 @@ class _CollectionSettingsScreenState extends State<_CollectionSettingsScreen> {
                                 ),
                             ],
                           ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
+                    const SizedBox(height: 24),
+                    SettingsSection(
+                      title: '位置与网络',
+                      children: [
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            _SignalControl(
+                              title: '定时采集位置',
+                              description: '每 20 分钟采集位置和定位误差，由后端筛选并解析地点。',
+                              source: 'location',
+                              enabled: session.locationEnabled,
+                              access: session.locationAccess,
+                              lastObservation: session.lastLocationLabel,
+                              session: session,
+                            ),
+                            if (session.locationEnabled &&
+                                session.locationAccess == 'granted')
+                              Padding(
+                                padding: const EdgeInsets.fromLTRB(
+                                  20,
+                                  0,
+                                  20,
+                                  14,
+                                ),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      session.backgroundLocation
+                                          ? '后台定位已授权'
+                                          : '当前为使用期间定位',
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        color: colors.onSurfaceVariant,
+                                      ),
+                                    ),
+                                    if (!session.backgroundLocation)
+                                      _SubtleActionButton(
+                                        label: '允许后台定位',
+                                        onTap: () =>
+                                            session.requestSignalAccess(
+                                              'backgroundLocation',
+                                            ),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                          ],
+                        ),
+                        SettingsSwitchTile(
+                          title: '定时采集网络',
+                          subtitle: '随位置记录 Wi-Fi 连接状态和名称。',
+                          value:
+                              session.locationEnabled && session.networkEnabled,
+                          onChanged: connected && session.locationEnabled
+                              ? session.setNetworkEnabled
+                              : null,
+                        ),
+                      ],
+                    ),
                     if (session.signalError != null)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),

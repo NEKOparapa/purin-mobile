@@ -280,6 +280,14 @@ class _MobileConnectorsScreenState extends State<MobileConnectorsScreen> {
           final currentPlatform = session.connectors.platform;
           final groups = currentPlatform.displayOrder;
           final theme = Theme.of(context);
+          final footer =
+              _feedback ??
+              session.connectorError ??
+              (currentPlatform == ConnectorPlatform.unsupported
+                  ? '点开可查看连接器用法，请在 Android 或 iOS 设备上启用。'
+                  : session.canEnableConnectors
+                  ? null
+                  : '点开可查看用法，连接服务后即可启用。');
           return Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 850),
@@ -346,17 +354,10 @@ class _MobileConnectorsScreenState extends State<MobileConnectorsScreen> {
                       );
                     },
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                    _feedback ??
-                        session.connectorError ??
-                        (currentPlatform == ConnectorPlatform.unsupported
-                            ? '点开可查看连接器用法，请在 Android 或 iOS 设备上启用。'
-                            : session.canEnableConnectors
-                            ? '手机在前台时响应查询，结果会保存到当前会话。'
-                            : '点开可查看用法，连接服务后即可启用。'),
-                    style: theme.textTheme.bodySmall,
-                  ),
+                  if (footer != null) ...[
+                    const SizedBox(height: 12),
+                    Text(footer, style: theme.textTheme.bodySmall),
+                  ],
                 ],
               ),
             ),

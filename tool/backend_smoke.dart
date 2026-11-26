@@ -30,6 +30,11 @@ Future<void> main() async {
   final api = AgentApi();
   final body = {'message_id': 'mobile-smoke-message', 'text': 'mobile hello'};
   final receipt = await api.request(connection, 'messages', body: body);
+  final online = await api.onlineDevices(connection);
+  check(
+    online.any((item) => item.deviceId == 'mobile-test' && item.isCurrent),
+    'Online devices endpoint must include the authenticated current device',
+  );
   final duplicate = await api.request(connection, 'messages', body: body);
   check(
     duplicate['duplicate'] == true && duplicate['job_id'] == receipt['job_id'],

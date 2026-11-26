@@ -114,6 +114,70 @@ class Connection {
   };
 }
 
+class OnlineDevice {
+  const OnlineDevice({
+    required this.deviceId,
+    required this.name,
+    this.deviceType,
+    this.platform,
+    this.lastSeenSeconds,
+    this.isCurrent = false,
+  });
+
+  factory OnlineDevice.fromJson(Json data) {
+    final rawId = data['device_id'];
+    final id = rawId is String ? rawId.trim() : '';
+    final rawName = data['name'];
+    final resolvedName = rawName is String && rawName.trim().isNotEmpty
+        ? rawName.trim()
+        : id;
+    return OnlineDevice(
+      deviceId: id,
+      name: resolvedName,
+      deviceType: data['device_type'] as String?,
+      platform: data['platform'] as String?,
+      lastSeenSeconds: (data['last_seen_seconds'] as num?)?.toInt(),
+      isCurrent: data['is_current'] == true,
+    );
+  }
+
+  final String deviceId;
+  final String name;
+  final String? deviceType;
+  final String? platform;
+  final int? lastSeenSeconds;
+  final bool isCurrent;
+
+  String get platformLabel => switch (platform) {
+    'windows' => 'Windows',
+    'macos' => 'macOS',
+    'android' => 'Android',
+    'ios' => 'iOS',
+    'esp32' => 'ESP32',
+    _ => switch (deviceType) {
+      'desktop' => '桌面端',
+      'mobile' => '手机',
+      'esp32' => 'ESP32',
+      _ => 'HTTP 设备',
+    },
+  };
+
+  String get resolvedKind {
+    if (deviceType == 'desktop' ||
+        platform == 'windows' ||
+        platform == 'macos') {
+      return 'desktop';
+    }
+    if (deviceType == 'mobile' || platform == 'android' || platform == 'ios') {
+      return 'mobile';
+    }
+    if (deviceType == 'esp32' || platform == 'esp32') {
+      return 'esp32';
+    }
+    return 'other';
+  }
+}
+
 class ApiError implements Exception {
   ApiError(this.status, this.code);
   final int status;
@@ -247,6 +311,17 @@ class AgentApi {
         body: body,
         timeout: Duration(seconds: path == 'messages/images' ? 60 : 9),
       );
+
+  Future<List<OnlineDevice>> onlineDevices(Connection connection) async {
+    final result = await request(connection, 'devices/online');
+    final items = result['items'];
+    if (items is! List) return const [];
+    return items
+        .whereType<Map>()
+        .map((row) => OnlineDevice.fromJson(Json.from(row)))
+        .where((item) => item.deviceId.isNotEmpty)
+        .toList(growable: false);
+  }
 
   Future<Json> uploadAppVisit(Connection connection, Json body, Json frame) {
     final at = DateTime.fromMillisecondsSinceEpoch(
