@@ -747,10 +747,10 @@ class _OnlineDevicesSectionState extends State<_OnlineDevicesSection> {
         _loading = false;
         _refreshing = false;
       });
-    } on ApiError catch (e) {
+    } on ApiError {
       if (!mounted) return;
       setState(() {
-        _error = e.status == 404 ? '后端尚未支持在线设备查询' : '读取在线设备信息失败，请稍后重试';
+        _error = '读取在线设备信息失败，请稍后重试';
         _loading = false;
         _refreshing = false;
       });

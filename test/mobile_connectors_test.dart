@@ -76,16 +76,17 @@ class _Api extends AgentApi {
 }
 
 void main() {
-  test('旧版设备状态授权在同步时撤回，保留已选连接器', () async {
+  test('同步已选连接器和待撤回的授权', () async {
     final conn = Connection('https://example.test', 'phone', 'test');
     final connectors = _Connectors();
     for (final selected in [
       <String>[],
-      ['android_calendar'],
+      [MobileConnector.calendar.id],
     ]) {
       final api = _Api();
       final tools = MobileTerminalTools({
-        'enabled': true,
+        'platform': connectors.platform.name,
+        'withdraw': true,
         'connectors': selected,
       }, connectors.platform);
       await tools.poll(api, conn, connectors, () async {}, () => true);

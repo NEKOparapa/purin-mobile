@@ -138,7 +138,7 @@ class MobileSession extends ChangeNotifier {
   }
 
   Connection? connection;
-  String? _systemDeviceName, _deviceModel;
+  String? _systemDeviceName;
   var _history = ChatHistory();
   bool get chatHistoryLoaded => _history.loaded;
   List<Json> _serverMessages = [];
@@ -265,23 +265,12 @@ class MobileSession extends ChangeNotifier {
   Future<void> _load(Connection value) async {
     _cancelScreenshotUpload();
     final saved = await store.history(value.scope);
-    final outbox = List<Json>.from(saved['pending'] ?? []);
-    // Older mobile clients queued handwritten notes at the slices endpoint.
-    final queued = outbox.length;
-    outbox.removeWhere(
-      (event) => event['path'] == 'slices' && event['source'] != 'usage',
-    );
-    var migratedUsage = false;
-    for (final event in outbox) {
-      if (event['path'] == 'slices' && event['source'] == 'usage') {
-        event['body'] = AppUsage.migrateSlice(event['body'] as Json);
-        event['path'] = AppUsage.path;
-        migratedUsage = true;
-      }
-    }
+    final outbox = List<Json>.from(
+      saved['pending'] ?? [],
+    ).where((event) => event['path'] == 'perceptions').toList();
     _history = ChatHistory();
     _serverMessages = [];
-    _outgoing = List<Json>.from(saved['outgoing'] ?? saved['messages'] ?? [])
+    _outgoing = List<Json>.from(saved['outgoing'] ?? [])
         .where(
           (row) =>
               row['role'] == 'user' &&
@@ -299,9 +288,7 @@ class MobileSession extends ChangeNotifier {
       saved['terminalTools'] as Json? ?? {},
       connectors.platform,
     );
-    collecting =
-        saved['foregroundActivityEnabled'] as bool? ??
-        (saved['collecting'] == true || saved['usageEnabled'] == true);
+    collecting = saved['foregroundActivityEnabled'] == true;
     locationEnabled = saved['locationEnabled'] == true;
     networkEnabled = saved['networkEnabled'] == true;
     screenshotsEnabled = saved['screenshotsEnabled'] == true;
@@ -310,8 +297,7 @@ class MobileSession extends ChangeNotifier {
         ? interval as int
         : 300;
     screenshotError = null;
-    lastUsageLabel =
-        saved['lastUsageLabel'] ?? saved['timeline']?['lastUsageLabel'];
+    lastUsageLabel = saved['lastUsageLabel'];
     lastLocationLabel = saved['locationFixLabel'];
     _unacknowledged
       ..clear()
@@ -322,14 +308,6 @@ class MobileSession extends ChangeNotifier {
     questions = [];
     connection = value;
     inbox.connect(value);
-    if (saved.containsKey('timeline') ||
-        saved.containsKey('messages') ||
-        outbox.length != queued ||
-        migratedUsage ||
-        saved.containsKey('collecting') ||
-        saved.containsKey('usageEnabled')) {
-      await _save();
-    }
     await _refreshSignals();
     await _configureScreenshots();
   }
@@ -443,14 +421,9 @@ class MobileSession extends ChangeNotifier {
   });
 
   Future<void> _refreshQuestions(Connection conn) async {
-    try {
-      final page = await api.request(conn, 'questions?status=pending&limit=20');
-      final raw = (page['items'] as List? ?? const []).cast<Json>();
-      questions = [for (final row in raw) PendingQuestion.fromJson(row)];
-    } on ApiError catch (e) {
-      if (e.status == 404) return;
-      rethrow;
-    }
+    final page = await api.request(conn, 'questions?status=pending&limit=20');
+    final raw = (page['items'] as List? ?? const []).cast<Json>();
+    questions = [for (final row in raw) PendingQuestion.fromJson(row)];
   }
 
   Future<void> answerQuestion(
@@ -560,7 +533,7 @@ class MobileSession extends ChangeNotifier {
           final systemName = _systemDeviceName;
           final updated = systemName == null
               ? null
-              : conn.withSystemName(systemName, _deviceModel);
+              : conn.withSystemName(systemName);
           if (updated != null) {
             if (updated.deviceName != conn.deviceName) {
               await api.request(updated, 'devices/self', body: {});
@@ -644,7 +617,6 @@ class MobileSession extends ChangeNotifier {
       );
       locationAccess = status['location'] ?? 'unsupported';
       _systemDeviceName = status['systemDeviceName'] as String?;
-      _deviceModel = status['deviceModel'] as String?;
       usageAccess = status['usage'] ?? 'unsupported';
       backgroundLocation = status['backgroundLocation'] == true;
       backgroundUsage = status['usageServiceRunning'] == true;

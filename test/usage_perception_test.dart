@@ -3,7 +3,7 @@ import 'package:purin_mobile/data/agent_api.dart';
 import 'package:purin_mobile/data/mobile_signals.dart';
 
 void main() {
-  test('前台、后台和旧队列重试使用同一个结构化感知事件', () {
+  test('前台和后台使用同一个结构化感知事件', () {
     final start = DateTime.utc(
       2026,
       11,
@@ -32,21 +32,12 @@ void main() {
         'activity_id': 'span-1',
         'foreground_app': '示例',
         'device_platform': 'android',
-        'started_at': '2026-11-24T12:00:00.000Z',
+        'started_at': '2026-11-24T12:00:00.123Z',
         'ended_at': '2026-11-24T12:00:03.773Z',
         'duration_seconds': 4,
       },
     });
     expect(AppUsage.fromRecord({...row})!.perception, body);
-    expect(
-      AppUsage.migrateSlice({
-        'event_id': 'span-1',
-        'occurred_at': '2026-11-24T12:00:03.773Z',
-        'text':
-            '手机前台使用「示例」，2026-11-24 12:00:00 至 2026-11-24 12:00:03（UTC），约 4 秒。',
-      }),
-      body,
-    );
     expect(AppUsage.fromRecord({...row, 'label': ''})?.app, 'com.example.app');
     expect(AppUsage.fromRecord({...row, 'end': start}), isNull);
     final home = {...row, 'deviceName': 'winrt-test', 'isHomeApp': true};
@@ -59,25 +50,26 @@ void main() {
     expect(AppUsage.fromRecord(app)!.perception['value']['is_home_app'], false);
   });
 
-  test('型号自动迁移到系统名称，手动设置的名称保留', () {
-    final old = Connection(
+  test('仅自动命名的设备跟随系统名称', () {
+    final automatic = Connection(
       'https://example.test',
       'phone',
       'token',
       name: 'AAK-AN00',
+      followsSystemName: true,
     );
-    final synced = old.withSystemName('winrt-test', 'AAK-AN00')!;
+    final synced = automatic.withSystemName('winrt-test')!;
     final restored = Connection.fromJson(synced.toJson());
     expect(restored.deviceName, 'winrt-test');
-    expect(restored.withSystemName('winrt-test', 'AAK-AN00'), isNull);
-    expect(restored.withSystemName('新名字', 'AAK-AN00')!.deviceName, '新名字');
+    expect(restored.withSystemName('winrt-test'), isNull);
+    expect(restored.withSystemName('新名字')!.deviceName, '新名字');
     final custom = Connection(
       'https://example.test',
       'phone',
       'token',
       name: '值班手机',
     );
-    expect(custom.withSystemName('winrt-test', 'AAK-AN00'), isNull);
+    expect(custom.withSystemName('winrt-test'), isNull);
     final manual = Connection(
       'https://example.test',
       'phone',
@@ -85,6 +77,6 @@ void main() {
       name: 'AAK-AN00',
       followsSystemName: false,
     );
-    expect(manual.withSystemName('winrt-test', 'AAK-AN00'), isNull);
+    expect(manual.withSystemName('winrt-test'), isNull);
   });
 }

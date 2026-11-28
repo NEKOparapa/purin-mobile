@@ -280,7 +280,6 @@ const englishMessages = <String, String>{
   '服务与凭据': 'Service and credentials',
   '填写后端服务根地址（不含 /v1 或其他路径）、设备标识与访问令牌。':
       'Enter the service root URL (without /v1 or other paths), device ID, and access token.',
-  '后端尚未支持在线设备查询': 'The server doesn\'t support online device lookup yet',
   '读取在线设备信息失败，请稍后重试': 'Couldn\'t load online devices. Try again later.',
   '读取在线设备信息失败，请检查网络连接':
       'Couldn\'t load online devices. Check the network connection.',
@@ -380,8 +379,6 @@ const englishMessages = <String, String>{
       'Allow camera access to scan, or go back and paste a pairing link.',
   '相机暂时不可用，可以返回粘贴配对链接。':
       'Camera unavailable. Go back and paste a pairing link.',
-  '当前后端未提供按日通知，请升级后端后刷新。':
-      'Update the server and refresh to see notifications by day.',
   '日历读取失败，请检查连接后重试。':
       'Couldn\'t load the calendar. Check your connection and try again.',
   '连接后可查看当日通知': 'Connect to see notifications for this day',

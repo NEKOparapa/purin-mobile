@@ -12,16 +12,14 @@ internal class SignalStore(context: Context) : SQLiteOpenHelper(context, "mobile
         db.execSQL("CREATE TABLE config (name TEXT PRIMARY KEY, value TEXT NOT NULL)")
         db.execSQL("CREATE TABLE records (id TEXT PRIMARY KEY, source TEXT NOT NULL, at INTEGER NOT NULL, body TEXT NOT NULL)")
         db.execSQL("CREATE INDEX record_time ON records(at)")
-        createScreenshots(db)
+        db.execSQL(
+            "CREATE TABLE screenshots (id TEXT PRIMARY KEY, at INTEGER NOT NULL, app TEXT NOT NULL, " +
+                "package TEXT NOT NULL, start INTEGER NOT NULL, activity_id TEXT NOT NULL, jpeg BLOB NOT NULL)"
+        )
     }
 
-    private fun createScreenshots(db: SQLiteDatabase) = db.execSQL(
-        "CREATE TABLE screenshots (id TEXT PRIMARY KEY, at INTEGER NOT NULL, app TEXT NOT NULL, " +
-            "package TEXT NOT NULL, start INTEGER NOT NULL, activity_id TEXT NOT NULL, jpeg BLOB NOT NULL)"
-    )
-
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if (oldVersion < 2) createScreenshots(db)
+        error("Unsupported signal database version $oldVersion, expected $newVersion")
     }
 
     fun <T> transaction(body: () -> T): T {

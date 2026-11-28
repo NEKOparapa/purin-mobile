@@ -30,7 +30,7 @@ class Connection {
     String id,
     String secret, {
     this.installation,
-    this.followsSystemName,
+    this.followsSystemName = false,
     String? name,
   }) : url = address.trim().replaceFirst(RegExp(r'/+$'), ''),
        deviceId = id.trim(),
@@ -59,24 +59,19 @@ class Connection {
 
   factory Connection.fromJson(Json data) => Connection(
     data['url'],
-    data['deviceId'] ?? data['terminal'],
+    data['deviceId'],
     data['token'],
     installation: data['installation'],
     name: data['deviceName'],
-    followsSystemName: data['followsSystemName'],
+    followsSystemName: data['followsSystemName'] == true,
   );
   static String get defaultDeviceName =>
       DevicePlatform.current == DevicePlatform.ios ? 'iOS 设备' : 'Android 手机';
   final String? installation;
-  final bool? followsSystemName;
+  final bool followsSystemName;
   final String deviceName;
-  Connection? withSystemName(String systemName, String? model) {
-    final automatic =
-        followsSystemName ??
-        (deviceName == model ||
-            deviceName == systemName ||
-            deviceName == defaultDeviceName);
-    if (!automatic || (followsSystemName == true && deviceName == systemName)) {
+  Connection? withSystemName(String systemName) {
+    if (!followsSystemName || deviceName == systemName) {
       return null;
     }
     return Connection(
@@ -110,7 +105,7 @@ class Connection {
     'token': token,
     'installation': installation,
     'deviceName': deviceName,
-    if (followsSystemName != null) 'followsSystemName': followsSystemName,
+    'followsSystemName': followsSystemName,
   };
 }
 
@@ -212,7 +207,7 @@ class AgentApi {
     String value, {
     required String installation,
     required String name,
-    bool? followsSystemName,
+    bool followsSystemName = false,
   }) async {
     final target = pairingAddress(value);
     if (target == null) {

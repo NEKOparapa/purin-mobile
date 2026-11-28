@@ -67,10 +67,7 @@ class DeviceStore implements MobileStore {
   Future<Connection?> connection() async {
     final raw = await _secrets.read(key: 'agent.connection');
     if (raw == null) return null;
-    final data = jsonDecode(raw) as Json;
-    final connection = Connection.fromJson(data);
-    if (data.containsKey('terminal')) await saveConnection(connection);
-    return connection;
+    return Connection.fromJson(jsonDecode(raw) as Json);
   }
 
   @override

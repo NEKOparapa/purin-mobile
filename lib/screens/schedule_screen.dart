@@ -151,7 +151,6 @@ class _ScheduleScreenState extends State<ScheduleScreen>
       if (!current()) return;
       setState(
         () => _error = switch (e) {
-          ApiError(status: 404 || 400) => '当前后端未提供按日通知，请升级后端后刷新。',
           FormatException(:final message) => message,
           _ => '日历读取失败，请检查连接后重试。',
         },

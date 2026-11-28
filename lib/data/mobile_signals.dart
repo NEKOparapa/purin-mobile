@@ -187,8 +187,6 @@ class AppUsage {
   }
 
   Json get perception => {
-    // Receipts are unique across layers. A lost receipt from an older slice
-    // must not collide with a perception for the same native interval.
     'event_id': 'app-usage:$id',
     'occurred_at': end.toIso8601String(),
     'state_key': stateKey,
@@ -198,46 +196,9 @@ class AppUsage {
       'device_platform': 'android',
       if (deviceName != null) 'device_name': deviceName,
       if (isHomeApp != null) 'is_home_app': isHomeApp,
-      // The previous durable outbox retained the start only to whole seconds.
-      // Use the same precision so either copy produces an identical retry.
-      'started_at': DateTime.utc(
-        start.year,
-        start.month,
-        start.day,
-        start.hour,
-        start.minute,
-        start.second,
-      ).toIso8601String(),
+      'started_at': start.toIso8601String(),
       'ended_at': end.toIso8601String(),
       'duration_seconds': seconds,
     },
   };
-
-  static final _oldText = RegExp(
-    r'^手机前台使用「(.+)」，(\d{4}-\d\d-\d\d \d\d:\d\d:\d\d) 至 \d{4}-\d\d-\d\d \d\d:\d\d:\d\d（UTC），约 (\d+) 秒。$',
-    dotAll: true,
-  );
-
-  static Json migrateSlice(Json body) {
-    final text = body['text'] as String;
-    final match = _oldText.firstMatch(text);
-    final start = match == null ? null : DateTime.tryParse('${match[2]}Z');
-    final end = DateTime.tryParse(body['occurred_at'] as String);
-    if (match != null && start != null && end != null) {
-      return AppUsage(
-        body['event_id'],
-        match[1]!,
-        start,
-        end.toUtc(),
-        int.parse(match[3]!),
-      ).perception;
-    }
-    // Keep the original observation even if it predates the structured text format.
-    return {
-      'event_id': 'app-usage:${body['event_id']}',
-      'occurred_at': body['occurred_at'],
-      'state_key': stateKey,
-      'value': text,
-    };
-  }
 }

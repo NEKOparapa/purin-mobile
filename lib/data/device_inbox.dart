@@ -105,7 +105,7 @@ class DeviceInbox extends ChangeNotifier {
   List<DeviceNotice> notices = [];
   bool hasUnread = false;
   String? cursor, error;
-  bool available = true, loading = false;
+  bool loading = false;
   bool? allowed;
   bool foreground = true;
   void Function(String scope, String id)? _onOpen;
@@ -122,7 +122,6 @@ class DeviceInbox extends ChangeNotifier {
   int _listGeneration = 0;
   Future<void>? _listing;
   bool _listingMore = false;
-  DateTime? _probeAt;
 
   bool get supported => Platform.isAndroid || Platform.isIOS;
 
@@ -134,11 +133,9 @@ class DeviceInbox extends ChangeNotifier {
     hasUnread = false;
     cursor = null;
     error = null;
-    available = true;
     loading = false;
     _listing = null;
     _polling = false;
-    _probeAt = null;
     if (!supported) return;
     noticeChannel.setMethodCallHandler((call) async {
       if (call.method == 'openNotice') {
@@ -183,12 +180,7 @@ class DeviceInbox extends ChangeNotifier {
 
   Future<void> poll() async {
     final conn = connection;
-    if (!supported ||
-        !foreground ||
-        _disposed ||
-        conn == null ||
-        _polling ||
-        (_probeAt?.isAfter(DateTime.now()) ?? false)) {
+    if (!supported || !foreground || _disposed || conn == null || _polling) {
       return;
     }
     _polling = true;
@@ -196,10 +188,6 @@ class DeviceInbox extends ChangeNotifier {
     try {
       await refresh();
       if (!_current(gen) || !foreground) return;
-      if (!available) {
-        _probeAt = DateTime.now().add(const Duration(minutes: 1));
-        return;
-      }
       await receiveNotices(api, conn, (notice) async {
         final presented = await noticeChannel
             .invokeMethod<bool>('foregroundArrival', {
@@ -210,19 +198,6 @@ class DeviceInbox extends ChangeNotifier {
             });
         return presented != null;
       }, active: () => foreground && _current(gen));
-    } on ApiError catch (e) {
-      if (!_current(gen)) return;
-      if (e.status == 404) {
-        available = false;
-        notices = [];
-        hasUnread = false;
-        cursor = null;
-        error = null;
-        _probeAt = DateTime.now().add(const Duration(minutes: 1));
-      } else {
-        error = e.toString();
-      }
-      notifyListeners();
     } catch (e) {
       if (_current(gen)) {
         error = e.toString();
@@ -277,7 +252,6 @@ class DeviceInbox extends ChangeNotifier {
         notices = rows;
       }
       cursor = tail;
-      available = true;
       error = null;
       var found = notices.any((n) => !n.read && !n.expired);
       if (!found && tail != null) {
@@ -286,17 +260,6 @@ class DeviceInbox extends ChangeNotifier {
         found = (older['items'] as List).isNotEmpty;
       }
       hasUnread = found;
-    } on ApiError catch (e) {
-      if (!_current(gen)) return;
-      if (e.status == 404) {
-        available = false;
-        notices = [];
-        hasUnread = false;
-        cursor = null;
-        error = null;
-      } else {
-        error = e.toString();
-      }
     } catch (e) {
       if (_current(gen)) error = e.toString();
     } finally {

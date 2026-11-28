@@ -15,22 +15,14 @@ bool secureToolConnection(Connection connection) {
 // The session's ordered writer serializes polling, setting changes and persistence.
 class MobileTerminalTools {
   MobileTerminalTools(Json saved, ConnectorPlatform platform)
-    : this._(
-        (saved['platform'] ?? 'android') == platform.name ? saved : {},
-        platform,
-      );
+    : this._(saved['platform'] == platform.name ? saved : {}, platform);
 
   MobileTerminalTools._(Json saved, this.platform)
     : selected = {
         for (final item in platform.catalog)
-          if ((saved['connectors'] as List? ?? []).contains(item.id) ||
-              (platform == ConnectorPlatform.android &&
-                  saved['platform'] == null &&
-                  (saved['connectors'] as List? ?? []).contains(item.key)))
-            item,
+          if ((saved['connectors'] as List? ?? []).contains(item.id)) item,
       },
-      // Withdraw capabilities advertised by older Android installs on their next sync.
-      _withdraw = saved['withdraw'] == true || saved['enabled'] == true,
+      _withdraw = saved['withdraw'] == true,
       _pending = saved['pending'] as Json?;
 
   final ConnectorPlatform platform;
